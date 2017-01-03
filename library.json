@@ -1,0 +1,21 @@
+{
+  "name": "MySecSwitch",
+  "keywords": "esp8266, iot, websocket, web, http, remote, local",
+  "description": "A Library to control ESP8266 using Mysec website and MysecSwitch Android App (remote and local without a server).",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/c-mysec/esp8266-mysecSwitch"
+  },
+  "version": "0.2.1",
+  "authors": {
+    "name": "Inet",
+    "url": "http://wp.thinkingthing.space/wp/"
+  },
+  "exclude": [
+    "scripts",
+    "test",
+    "third-party"
+  ],
+  "frameworks": "arduino",
+  "platforms": "esp8266"
+}
