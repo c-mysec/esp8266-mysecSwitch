@@ -41,7 +41,7 @@ String MysecUtil::makeToken(const char* payload, const uint8_t * passkey2) {
   uint8_t *hash;
   String chaveOriginal; chaveOriginal.reserve(44);
   BU64::encode(chaveOriginal, passkey2, 32);
-  MYSECSWITCH_DEBUGF2(F("Usando chave: %s\n"), chaveOriginal.c_str());
+  MYSECSWITCH_DEBUGF(F("Util makeToken Usando chave: %s\n"), chaveOriginal.c_str());
   Sha256.initHmac(passkey2, 32); // key, and length of key in bytes
   Sha256.print(payload);
   hash = Sha256.resultHmac(); // 32 bytes
@@ -61,7 +61,7 @@ bool MysecUtil::validateToken(const char* payload, const char* receivedToken, co
   BU64::decode(hash2, receivedToken, 44);
   String r; r.reserve(45);
   BU64::encode(r, hash2, 32);
-  MYSECSWITCH_DEBUGF2(F("Payload: %s\nToken: %s\nCalc Token: %s\nUsando chave: %s\n"), payload, receivedToken, r.c_str(), chaveOriginal.c_str());
+  MYSECSWITCH_DEBUGF(F("Util validateToken Payload: %s\nToken: %s\nCalc Token: %s\nUsando chave: %s\n"), payload, receivedToken, r.c_str(), chaveOriginal.c_str());
   return (memcmp(hash, hash2, 32) == 0);
 }
 
@@ -141,3 +141,6 @@ const char PM_TEMPOLIGADO[] PROGMEM = {"tempoLigado"};
 const char PM_TEMPODESLIGADO[] PROGMEM = {"tempoDesligado"};
 const char PM_TAG1[] PROGMEM = {"tag1"};
 const char PM_TAG2[] PROGMEM = {"tag2"};
+
+const char MYSECSWITCH_PM_DEBUG[] PROGMEM = {"DEBUG:MySec "};
+const char MYSECSWITCH_PM_ERROR[] PROGMEM = {"ERROR:MySec "};

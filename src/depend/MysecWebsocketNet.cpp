@@ -34,17 +34,21 @@ MysecWebsocketNet::~MysecWebsocketNet() {
 bool MysecWebsocketNet::connect(bool wssecure, const char* wshost, int wsport, const char* wsuri) {
   resp.remove(0);
   if (wssecure) {
-    MYSECSWITCH_DEBUGF2(F("Iniciando websocket: wss://%s:%d%s\n"), wshost, wsport, wsuri);
+    MYSECSWITCH_DEBUGF(F("WebsocketNet connect Iniciando websocket: wss://%s:%d%s\n"), wshost, wsport, wsuri);
     webSocket.beginSSL(wshost, wsport, wsuri);
   } else {
-    MYSECSWITCH_DEBUGF2(F("Iniciando websocket: ws://%s:%d%s\n"), wshost, wsport, wsuri);
+    MYSECSWITCH_DEBUGF(F("WebsocketNet connect Iniciando websocket: ws://%s:%d%s\n"), wshost, wsport, wsuri);
     webSocket.begin(wshost, wsport, wsuri);
   }
   webSocket.onEvent(webSocketEvent);
   return true;
 }
 void MysecWebsocketNet::loop() {
-  webSocket.loop();
+  if (_mysecDeviceState.state <= MysecDeviceState::STATE_CONNECTING) {
+    webSocket.loop();
+  } else if (!webSocket.loop1()) {
+    _mysecDeviceState.state = MysecDeviceState::STATE_DISCONNECTED;
+  }
   // temos mensagem para processar
   if (resp.length() > 0) {
     // valida assinatura token.
@@ -55,17 +59,13 @@ void MysecWebsocketNet::loop() {
     String response = resp.substring(pos2 + 1); // pula ':'
     resp.remove(0);
     String respToken2 = MysecUtil::makeToken(response.c_str(), _mysecDeviceState.passkey2);
-    MYSECSWITCH_DEBUGF2(F("Response=%s\n"), response.c_str());
-    MYSECSWITCH_DEBUGF2(F("respToken=%s\n"), respToken.c_str());
-    MYSECSWITCH_DEBUGF2(F("gen respToken=%s\n"), respToken2.c_str());
+    MYSECSWITCH_DEBUGF(F("WebsocketNet loop Response=%s, respToken=%s, gen respToke=%s\n"), response.c_str(), respToken.c_str(), respToken2.c_str());
     if (respToken == respToken2) {
       bool r = _mysecDeviceState.mysecParser->decodeResponse(msgid, response, 1);
-//      uint32_t m = millis();
-//      String payload = _mysecDeviceState.mysecParser->makePayload(m, 2, false);
-//      _mysecUdpNet.send(payload);
-      MYSECSWITCH_DEBUGF2(F("retorno decode=%d\n"), r);
+      MYSECSWITCH_DEBUGF(F("WebsocketNet loop retorno decode=%d\n"), r);
+      _mysecDeviceState.lastSynch = 1;
     } else {
-      MYSECSWITCH_DEBUGLN(F("invalid token. Is Passkey synchronized?"));
+      MYSECSWITCH_ERRORLN(F("WebsocketNet loop invalid token. Is Passkey synchronized?"));
     }
   }
 }
@@ -79,35 +79,36 @@ void MysecWebsocketNet::send(const __FlashStringHelper *msgid, String& payload) 
     p.concat(MysecUtil::makeToken(payload.c_str(), _mysecDeviceState.passkey2));
     p.concat(':');
     p.concat(payload);
-    MYSECSWITCH_DEBUGF2(F("Enviando: %s\n"), p.c_str());
+    MYSECSWITCH_DEBUGF(F("WebsocketNet send Enviando: %s\n"), p.c_str());
     webSocket.sendTXT(p);
   }
 }
 void webSocketEvent(WStype_t type, uint8_t * payload, size_t lenght) {
   switch (type) {
   case WStype_DISCONNECTED: {
-    MYSECSWITCH_DEBUGLN(F("Disconnected!\n"));
     _mysecDeviceState.state = MysecDeviceState::STATE_DISCONNECTED;
+    webSocket.disconnect();
+    MYSECSWITCH_ERRORLN(F("WebsocketNet webSocketEvent Disconnected!\n"));
   }
   break;
   case WStype_ERROR: {
-    MYSECSWITCH_DEBUGLN(F("Error!\n"));
+    MYSECSWITCH_ERRORLN(F("WebsocketNet webSocketEvent Error!\n"));
   }
   break;
   case WStype_CONNECTED: {
-    MYSECSWITCH_DEBUGF2(F("Connected to url: %s\n"), payload);
+    MYSECSWITCH_DEBUGF(F("WebsocketNet webSocketEvent Connected to url: %s\n"), payload);
     _mysecDeviceState.state = MysecDeviceState::STATE_IDLE;
     _mysecDeviceState.connType = MysecDeviceState::TYPE_WEBSOCKET;
     }
   break;
   case WStype_TEXT: {
-    MYSECSWITCH_DEBUGF2(F("get text: %s\n"), payload);
+    MYSECSWITCH_DEBUGF(F("WebsocketNet webSocketEvent get text: %s\n"), payload);
     _mysecWebsocketNet.resp.remove(0);
     _mysecWebsocketNet.resp.concat((const char *)payload);
   }
   break;
   case WStype_BIN:
-    MYSECSWITCH_DEBUGF2(F("get binary lenght: %u\n"), lenght);
+    MYSECSWITCH_DEBUGF(F("WebsocketNet webSocketEvent get binary lenght: %u\n"), lenght);
     //hexdump(payload, lenght, (uint8_t)16);
 
     // send data to server

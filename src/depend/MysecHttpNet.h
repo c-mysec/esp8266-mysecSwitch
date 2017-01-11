@@ -25,7 +25,7 @@ public:
   /* Inclui a assinatura e envia a requisição. No retorno valida a assinatura
    * response é parâmetro de saída
    */
-  bool request(String& uri, String &payload, String &response, HTTPClient &wc_http);
+  int request(String& uri, String &payload, String &response, HTTPClient &wc_http);
 };
 extern MysecHttpNet _mysecHttpNet;
 #endif /* MYSECHTTPNET_H_ */

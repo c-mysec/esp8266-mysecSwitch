@@ -18,7 +18,7 @@
 
 void MysecUdpNet::init(int port, bool integraAlarmePar) {
   if (port > 0) {
-    MYSECSWITCH_DEBUGF2(F("Begin por:%d\n"), port);
+    MYSECSWITCH_DEBUGF(F("UdpNet init Begin port:%d\n"), port);
     udpClient.begin(port);
   }
   memset(pb2, 0, 32);
@@ -37,17 +37,19 @@ MysecUdpNet::~MysecUdpNet() {
 String MysecUdpNet::receive(const uint8_t * passkey, uint64_t deviceId) {
 	int cb = udpClient.parsePacket();
 	if (cb) {
-	  MYSECSWITCH_DEBUGF2(F("1 - cb:%d\n"), cb);
+	  MYSECSWITCH_DEBUGF(F("UdpNet receive cb:%d\n"), cb);
     uint8_t * buffer = new uint8_t[cb];
     udpClient.readBytes(buffer, cb);
+#if MYSECSWITCH_DEBUG>1
     String tPrint; tPrint.reserve(44);
+#endif
     uint16_t siz = readInt(buffer);
     if (siz == 0) {
       // as mensagens de alarme começam com 00
-      MYSECSWITCH_DEBUGLN(F("2 - mensagem de alarme"));
+      MYSECSWITCH_DEBUGLN(F("UdpNet receive mensagem de alarme"));
       if (estado != 1) {
         delete[] buffer;
-        MYSECSWITCH_DEBUGLN(F("3 - Não estamos aceitando mensagem de alarme"));
+        MYSECSWITCH_DEBUGLN(F("UdpNet receive Não estamos aceitando mensagem de alarme"));
         return ""; // nao aceitamos comandos do alarme
       }
       siz = readInt((uint8_t *)(buffer + 2));
@@ -65,45 +67,49 @@ String MysecUdpNet::receive(const uint8_t * passkey, uint64_t deviceId) {
       Sha256.write((uint8_t)((origem) & 0xFF));
       Sha256.write((uint8_t)((origem >> 8) & 0xFF));
       if (siz > 0) {
+#if MYSECSWITCH_DEBUG>1
         tPrint.remove(0);
         BU64::encode(tPrint, buffer + 48, siz);
-        MYSECSWITCH_DEBUGF2(F("buffer:%s\n"), tPrint.c_str());
+        MYSECSWITCH_DEBUGF(F("UdpNet receive buffer:%s\n"), tPrint.c_str());
+#endif
         Sha256.write((buffer + 48), siz);
       }
       uint8_t * hash2 = Sha256.resultHmac();
+#if MYSECSWITCH_DEBUG>1
       tPrint.remove(0);
       BU64::encode(tPrint, hash, 32);
-      MYSECSWITCH_DEBUGF2(F("siz:%d val:%d destino:%d origem:%d rechash:%s\n"), siz, val, destino, origem, tPrint.c_str());
+      MYSECSWITCH_DEBUGF(F("UdpNet receive siz:%d val:%d destino:%d origem:%d rechash:%s\n"), siz, val, destino, origem, tPrint.c_str());
       tPrint.remove(0);
       BU64::encode(tPrint, passkey, 32);
-      MYSECSWITCH_DEBUGF2(F("userpasskey: %s\n"), tPrint.c_str());
+      MYSECSWITCH_DEBUGF(F("UdpNet receive userpasskey: %s\n"), tPrint.c_str());
       tPrint.remove(0);
       BU64::encode(tPrint, hash2, 32);
-      MYSECSWITCH_DEBUGF2(F("calchash:%s\n"), tPrint.c_str());
+      MYSECSWITCH_DEBUGF(F("UdpNet receive calchash:%s\n"), tPrint.c_str());
+#endif
       if (memcmp(hash, hash2, 32)) {
-        MYSECSWITCH_DEBUGLN(F("hash invalido"));
+        MYSECSWITCH_ERRORLN(F("UdpNet receive hash invalido"));
         return "";
       }
       uint16_t msgid = readInt((uint8_t *)buffer + 44);
-      MYSECSWITCH_DEBUGF2(F("Mensagem :%d\n"), msgid);
+      MYSECSWITCH_DEBUGF(F("UdpNet receive Mensagem :%d\n"), msgid);
       // verifica qual eh o comando
       switch (msgid) {
       case MESSAGE_TYPES::MSG_DUMMY:
       case MESSAGE_TYPES::MSG_SWITCHSTATE:
       case MESSAGE_TYPES::MSG_ALARMSTATUS:
       case MESSAGE_TYPES::MSG_PINCHANGE:
-        MYSECSWITCH_DEBUGLN(F("Descartada"));
+        MYSECSWITCH_DEBUGLN(F("UdpNet receive Descartada"));
         break;
       case MESSAGE_TYPES::MSG_IMHOME:
         hab = readLong((uint8_t *)buffer + 48);
         nextEventHab = millis() + hab;
         hab = -10; // depois muda para um valor positivo para que o autoswitch fique desabilitado pelo tempo programado
-        MYSECSWITCH_DEBUGF2(F("Desabilita automatico por :%d\n"), hab);
+        MYSECSWITCH_DEBUGF(F("UdpNet receive Desabilita automatico por :%d\n"), hab);
         break;
       case MESSAGE_TYPES::MSG_ALARMNOTURNO:
       case MESSAGE_TYPES::MSG_ALARMDISABLED:
         // desabilita programacao automatica
-        MYSECSWITCH_DEBUGLN(F("Desabilita automatico"));
+        MYSECSWITCH_DEBUGLN(F("UdpNet receive Desabilita automatico"));
         //hab = -1;
         hab = -11; // depois muda para -1 para que o autoswitch fique desabilitado pelo tempo programado
         break;
@@ -111,20 +117,20 @@ String MysecUdpNet::receive(const uint8_t * passkey, uint64_t deviceId) {
         // habilita programacao automatica
         //hab = 0;
         hab = -12; // depois muda para 0 para que o autoswitch fique habilitado
-        MYSECSWITCH_DEBUGLN(F("Habilita automatico"));
+        MYSECSWITCH_DEBUGLN(F("UdpNet receive Habilita automatico"));
         break;
       case MESSAGE_TYPES::MSG_ALARMFIRED:
         // acende todas as luzes por 10 minutos
         hab = -2; // -2 => fired, depois muda para -3 para não ficar mostrando mensagem repetida de q é para acender as luzes
         // calcula tempo para deixar ligado
         nextEventHab = millis() + 10 * 60 * 1000;
-        MYSECSWITCH_DEBUGLN(F("Acende todas as luzes por 10 minutos"));
+        MYSECSWITCH_DEBUGLN(F("UdpNet receive Acende todas as luzes por 10 minutos"));
         break;
       case MESSAGE_TYPES::MSG_SWITCHTESTFIRED:
         // acende todas as luzes por 1 minuto
         hab = -2; // muda para -3 para não ficar mostrando mensagem repetida de q é para acender as luzes
         nextEventHab = millis() + 1 * 60 * 1000;
-        MYSECSWITCH_DEBUGLN(F("Acende todas as luzes por 1 minuto"));
+        MYSECSWITCH_DEBUGLN(F("UdpNet receive Acende todas as luzes por 1 minuto"));
         break;
       }
       delete[] buffer;
@@ -137,13 +143,13 @@ String MysecUdpNet::receive(const uint8_t * passkey, uint64_t deviceId) {
       delete[] buffer;
 	    int pos = s.indexOf(';');
 	    String payload = s.substring(pos + 1);
-	    MYSECSWITCH_DEBUGF2(F("Recebido: %s\n"), s.c_str());
+	    MYSECSWITCH_DEBUGF(F("UdpNet receive Recebido: %s\n"), s.c_str());
 	    int fase, des2;
 	    {
 	      StaticJsonBuffer<1000> jsonBuffer;
 	      JsonObject& data = jsonBuffer.parseObject(payload);
 	      if (!data.success()) {
-	        MYSECSWITCH_DEBUGF2(F("parseObject() failed %s\n"), payload.c_str());
+	        MYSECSWITCH_ERRORF(F("UdpNet receive parseObject() failed %s\n"), payload.c_str());
 	        return "";
 	      }
 	      fase = data["fase"];
@@ -153,12 +159,12 @@ String MysecUdpNet::receive(const uint8_t * passkey, uint64_t deviceId) {
 	        BU64::decode(pb2, des1.c_str(), 44);
 	      }
 	    }
-	    MYSECSWITCH_DEBUGF2(F("parseObject ok fase %d\n"), fase);
+	    MYSECSWITCH_ERRORF(F("UdpNet receive parseObject ok fase %d\n"), fase);
 	    if (fase == 1) {
 	      memset(sessionKey, 0, 32);
 	      // valida a mensagem inicial com HMAC da chave do usuario
 	      if (!MysecUtil::validateToken(payload.c_str(), s.c_str(), passkey)) {
-	        MYSECSWITCH_DEBUGF2(F("Falhou o hash da mensagem payload:%s token:%s gentoken:%s\n"), payload.c_str(), s.c_str(), MysecUtil::makeToken(payload.c_str(), passkey).c_str());
+	        MYSECSWITCH_ERRORF(F("UdpNet receive Falhou o hash da mensagem payload:%s token:%s gentoken:%s\n"), payload.c_str(), s.c_str(), MysecUtil::makeToken(payload.c_str(), passkey).c_str());
 	        memset(pb2, 0 ,32);
 	        return "";
 	      }
@@ -181,27 +187,25 @@ String MysecUdpNet::receive(const uint8_t * passkey, uint64_t deviceId) {
 //	      String sendHash; sendHash.reserve(44);
 //	      BU64::encode(sendHash, hash, 32);
 	      String sendHash = MysecUtil::makeToken(sendPayload.c_str(), passkey);
-	      MYSECSWITCH_DEBUGF2(F("enviando resposta para %s:%d : %s\n"), udpClient.remoteIP().toString().c_str(), udpClient.localPort(), sendPayload.c_str());
+	      MYSECSWITCH_DEBUGF(F("UdpNet receive enviando resposta para %s:%d : %s\n"), udpClient.remoteIP().toString().c_str(), udpClient.localPort(), sendPayload.c_str());
 	      remote = udpClient.remoteIP();
 	      udpClient.beginPacket(udpClient.remoteIP(), udpClient.localPort());
-	      MYSECSWITCH_DEBUGF2(F("SendHash:%s\n"), sendHash.c_str());
+	      MYSECSWITCH_DEBUGF(F("UdpNet receive SendHash:%s, Payload:%s\n"), sendHash.c_str(), sendPayload.c_str());
 	      udpClient.print(sendHash);
 	      udpClient.print(";");
-        MYSECSWITCH_DEBUGF2(F("SendPayload:%s\n"), sendPayload.c_str());
 	      udpClient.print(sendPayload);
 	      udpClient.endPacket();
-        MYSECSWITCH_DEBUGLN(F("Sent"));
 	    } else if (fase == 2 && (sessionKey[0] != 0 || sessionKey[1] != 0 || sessionKey[2] != 0)) {
 	      // pedido de estado
         yield();
         if (!MysecUtil::validateToken(payload.c_str(), s.c_str(), sessionKey)) {
-	        MYSECSWITCH_DEBUGLN(F("Assinatura fase 2 invalida"));
+	        MYSECSWITCH_ERRORLN(F("UdpNet receive Assinatura fase 2 invalida"));
 	        return "";
 	      }
-	      MYSECSWITCH_DEBUGLN(F("Assinatura fase 2 ok"));
+	      MYSECSWITCH_DEBUGLN(F("UdpNet receive Assinatura fase 2 ok"));
 	      return payload;
 	    } else {
-	      MYSECSWITCH_DEBUGLN(F("mensagem em fase nao reconhecida"));
+	      MYSECSWITCH_ERRORLN(F("UdpNet receive mensagem em fase nao reconhecida"));
 	    }
 		}
 	}
@@ -209,9 +213,11 @@ String MysecUdpNet::receive(const uint8_t * passkey, uint64_t deviceId) {
 }
 bool MysecUdpNet::makeSharedKey(const uint8_t * passkey) {
 	if (pb2[0] != 0 || pb2[1] != 0 || pb2[2] != 0) {
+#ifdef MYSECSWITCH_DEBUG
     String b; b.reserve(45);
     BU64::encode(b, pb2, 32);
-    MYSECSWITCH_DEBUGF2(F("pb2 : %s\n"), b.c_str());
+    MYSECSWITCH_DEBUGF(F("UdpNet makeSharedKey pb2 : %s\n"), b.c_str());
+#endif
 		// gera shared
     uint8_t f[32];
 		memcpy(f, passkey, 32);
@@ -222,9 +228,11 @@ bool MysecUdpNet::makeSharedKey(const uint8_t * passkey) {
 		// já responde usando a sessionkey
 		Curve25519::dh2(sessionKey, f);
 		//curve25519_donna(sessionKey, pk1, pb2);
+#ifdef MYSECSWITCH_DEBUG
 		b.remove(0);
 		BU64::encode(b, sessionKey, 32);
-		MYSECSWITCH_DEBUGF2(F("sessionKey : %s\n"), b.c_str());
+		MYSECSWITCH_DEBUGF(F("UdpNet makeSharedKey sessionKey : %s\n"), b.c_str());
+#endif
 		memset(pb2, 0 ,32);
 		return true;
 	} else {
@@ -233,7 +241,7 @@ bool MysecUdpNet::makeSharedKey(const uint8_t * passkey) {
 }
 void MysecUdpNet::send(String& payload) {
   if (sessionKey[0] != 0 || sessionKey[1] != 0 || sessionKey[2] != 0) {
-    MYSECSWITCH_DEBUGF2(F("enviando resposta para %s : %s\n"), remote.toString().c_str(), payload.c_str());
+    MYSECSWITCH_DEBUGF(F("UdpNet send enviando resposta para %s : %s\n"), remote.toString().c_str(), payload.c_str());
     udpClient.beginPacket(remote, udpClient.localPort());
     udpClient.print(MysecUtil::makeToken(payload.c_str(), sessionKey));
     udpClient.write(';');

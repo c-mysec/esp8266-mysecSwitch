@@ -63,7 +63,7 @@ bool MysecParser::decodeResponse(const String& msgid, const String &resp, uint32
   JsonObject& root = jsonBuffer.parseObject(resp);
   if (!root.success())
   {
-    MYSECSWITCH_DEBUGLN(F("parseObject() failed"));
+    MYSECSWITCH_ERRORLN(F("Parser decodeResponse parseObject() failed"));
     return false;
   }
   if (m > 0) {
@@ -79,24 +79,24 @@ bool MysecParser::decodeResponseNewKeyTime(JsonObject& rdata, uint32_t m) {
     if (rpb2.length() >= 44) {
       _mysecDeviceState.pb2.remove(0);
       _mysecDeviceState.pb2.concat(rpb2);
-      MYSECSWITCH_DEBUGF2(F("Recebendo nova chave pb2 %s\n"), _mysecDeviceState.pb2.c_str());
+      MYSECSWITCH_DEBUGF(F("Parser decodeResponseNewKey Recebendo nova chave pb2 %s\n"), _mysecDeviceState.pb2.c_str());
     }
   }
   if (m > 1 && rdata.containsKey(JFS(PM_TIME))) {
     String t = rdata[FPSTR(PM_TIME)];
-    MYSECSWITCH_DEBUGF2(F("time=%s\n"), t.c_str());
+    MYSECSWITCH_DEBUGF(F("Parser decodeResponseNewKey time=%s\n"), t.c_str());
     _mysecDeviceState.timeoffset = MysecUtil::atoull(t);
     _mysecDeviceState.lasttimeMillis = millis(); // guarda o offset de millis
   }
   if (!rdata.containsKey(JFS(PM_S))) {
     String s;
     rdata.prettyPrintTo(s);
-    MYSECSWITCH_DEBUGF2(F("Não encontrou timestamp: %s\n"), s.c_str());
+    MYSECSWITCH_DEBUGF(F("Parser decodeResponseNewKey Não encontrou timestamp: %s\n"), s.c_str());
     return false;
   } else {
     uint32_t m2 = rdata[FPSTR(PM_S)];
     if (m > 1 && m2 != m) {
-      MYSECSWITCH_DEBUGLN(F("timestamp incorreto"));
+      MYSECSWITCH_ERRORLN(F("Parser decodeResponseNewKey timestamp incorreto"));
       return false;
     }
   }
@@ -107,7 +107,7 @@ bool MysecParser::decodeResponseNewKeyTime(JsonObject& rdata, uint32_t m) {
     if ((t1 != 0 || t2 != 0) && (t1 > _mysecDeviceState.tag1 || (t1 == _mysecDeviceState.tag1 && t2 > _mysecDeviceState.tag2))) {
       _mysecDeviceState.flags |= 0x80;
     }
-    MYSECSWITCH_DEBUGF2(F("tag1:%lu, tag2:%lu\n"), _mysecDeviceState.tag1, _mysecDeviceState.tag2);
+    MYSECSWITCH_DEBUGF(F("Parser decodeResponseNewKey tag1:%lu, tag2:%lu\n"), _mysecDeviceState.tag1, _mysecDeviceState.tag2);
   }
   return true;
 }
@@ -124,7 +124,7 @@ bool MysecParser::decodeResponse2(JsonObject& rdata, uint32_t m) {
       uint8_t num = ((uint8_t)rpin[FPSTR(PM_PINNUMBER)]);
       bool nextValueSet = rpin[F("nextValueSet")] == 1;
       if (nextValueSet) {
-        MYSECSWITCH_DEBUGF2(F("Processando novo valor do pino=%d, estado=%d\n"), num, _mysecDeviceState.state);
+        MYSECSWITCH_DEBUGF(F("Parser decodeResponse2 Processando novo valor do pino=%d, estado=%d\n"), num, _mysecDeviceState.state);
         if (_mysecDeviceState.state >= MysecDeviceState::STATE_IDLE) {
           _mysecDeviceState.state = MysecDeviceState::STATE_HASDATA;
         }
@@ -132,13 +132,13 @@ bool MysecParser::decodeResponse2(JsonObject& rdata, uint32_t m) {
           // só deixa intermitente se continuar recebendo a programação (isso é por que o usuário pode desabilitar ou excluir o programa enquanto estiver no intervalo)
           _mysecDeviceState.tempoLigado[j] = 0;
           _mysecDeviceState.tempoDesligado[j] = 0;
-          MYSECSWITCH_DEBUGF2(F("verificando com pino=%d\n"), _mysecDeviceState.pinNumber[j]);
+          MYSECSWITCH_DEBUGF(F("Parser decodeResponse2 verificando com pino=%d\n"), _mysecDeviceState.pinNumber[j]);
           if (_mysecDeviceState.pinNumber[j] == num) {
             if (rpin.containsKey(JFS(PM_TEMPOLIGADO)) && rpin.containsKey(JFS(PM_TEMPODESLIGADO)) &&
               rpin[FPSTR(PM_TEMPOLIGADO)] > 0 && rpin[FPSTR(PM_TEMPODESLIGADO)] > 0) {
               // intermitente
               if (rpin[F("nextValue")] == LOW) {
-                MYSECSWITCH_DEBUGF2(F("Fim da programação em =%d\n"), (uint32_t)rpin[F("quando")]);
+                MYSECSWITCH_DEBUGF(F("Parser decodeResponse2 Fim da programação em =%d\n"), (uint32_t)rpin[F("quando")]);
                 // fim da programação
                 // desliga quando expirar e não repete mais
                 _mysecDeviceState.when[j] = rpin[F("quando")]; // quando vai mudar para o pinNextValue, valor ajustado para o millis() local.
@@ -150,12 +150,11 @@ bool MysecParser::decodeResponse2(JsonObject& rdata, uint32_t m) {
                   _mysecDeviceState.when[j] += agora;
                 }
               } else if (_mysecDeviceState.tempoLigado[j] <= 0) {
-                MYSECSWITCH_DEBUGF2(F("Nova programação em =%d\n"), (uint32_t)rpin[F("quando")]);
                 // nova programação
                 _mysecDeviceState.pinNextValue[j] = HIGH;
                 _mysecDeviceState.when[j] = rpin[F("quando")]; // quando vai mudar para o pinNextValue, valor ajustado para o millis() local.
                 _mysecDeviceState.when[j] = _mysecDeviceState.when[j] * 1000; // a transmissão é em segundos e guardamos milissegundos
-                MYSECSWITCH_DEBUGF2(F("Disparando programação em =%d\n"), _mysecDeviceState.when[j]);
+                MYSECSWITCH_DEBUGF(F("Parser decodeResponse2 Disparando programação em =%d\n"), _mysecDeviceState.when[j]);
                 if (_mysecDeviceState.when[j] <= 10000) {
                   // se temos uma programação expirada, atualizamos o valor
                   _mysecDeviceState.applyNext(j);
@@ -163,7 +162,7 @@ bool MysecParser::decodeResponse2(JsonObject& rdata, uint32_t m) {
                   _mysecDeviceState.when[j] += agora;
                 }
               } else {
-                MYSECSWITCH_DEBUGLN(F("ajustando programação"));
+                MYSECSWITCH_DEBUGLN(F("Parser decodeResponse2 ajustando programação"));
                 // caso contrário só ajusta o tempo ligado e desligado
               }
             } else {
@@ -173,14 +172,16 @@ bool MysecParser::decodeResponse2(JsonObject& rdata, uint32_t m) {
               _mysecDeviceState.when[j] = rpin[F("quando")]; // quando vai mudar para o pinNextValue, valor ajustado para o millis() local.
               _mysecDeviceState.when[j] = _mysecDeviceState.when[j] * 1000; // a transmissão é em segundos e guardamos milissegundos
   #ifdef MYSECSWITCH_DEBUG
-    String p; p.reserve(50);
-    p.concat(FPSTR("Novo valor recebido "));
+    String p; p.reserve(100);
+    p.concat(FPSTR("Parser decodeResponse2 Novo valor recebido "));
     p.concat(_mysecDeviceState.pinNextValue[j]);
-    p.concat(F(" no pino "));
+    p.concat(FPSTR(" no pino "));
     p.concat(_mysecDeviceState.pinNumber[j]);
-    MYSECSWITCH_DEBUGF2(F("%s nextValueSet:%s\n"), p.c_str(), _mysecDeviceState.getNextValueSet(j) ? "true" : "false");
+    p.concat(FPSTR(" nextValueSet: "));
+    p.concat(_mysecDeviceState.getNextValueSet(j) ? "true" : "false");
+    MYSECSWITCH_DEBUGLN(p.c_str());
   #endif
-    MYSECSWITCH_DEBUGF2(F("Free dynamic memory:%ld\n"), ESP.getFreeHeap());
+    MYSECSWITCH_DEBUGF(F("Parser decodeResponse2 Free dynamic memory:%ld\n"), ESP.getFreeHeap());
               if (_mysecDeviceState.getNextValueSet(j)) {
                 if (_mysecDeviceState.when[j] <= 10000) {
                   // se temos uma programação expirada, atualizamos o valor
@@ -199,7 +200,7 @@ bool MysecParser::decodeResponse2(JsonObject& rdata, uint32_t m) {
     }
   } else {
     if (m > 0) {
-      MYSECSWITCH_DEBUGLN(F("Não encontrou pins"));
+      MYSECSWITCH_ERRORLN(F("Parser decodeResponse2 Não encontrou pins"));
       return false;
     }
   }
