@@ -13,7 +13,7 @@
 #define MYSECUTIL_H_
 
 #ifndef MYSECSWITCH_DEBUG
-#define MYSECSWITCH_DEBUG 1
+#define MYSECSWITCH_DEBUG 2
 #endif
 
 extern const char MYSECSWITCH_PM_DEBUG[] PROGMEM;

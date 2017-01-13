@@ -298,7 +298,7 @@ void MysecSwitch::loop() {
           _mysecDeviceState.state = MysecDeviceState::STATE_IDLE;
       } else if (( // no caso de HTTP envia a cada 30 minutos
           // o servidor só vai aceitar 1 valor a cada 30 minutos
-          (_mysecDeviceState.lastSynch == 1 || _mysecDeviceState.lastSynch + interval < millis()) && _mysecDeviceState.connType == MysecDeviceState::TYPE_HTTP)) {
+          (_mysecDeviceState.lastSynch <= 1 || _mysecDeviceState.lastSynch + interval < millis()) && _mysecDeviceState.connType == MysecDeviceState::TYPE_HTTP)) {
         _mysecDeviceState.lastSynch = millis();
         // http
         MYSECSWITCH_DEBUGF(F("Switch loop url=%s\n"), _mysecDeviceState.url.c_str());
@@ -334,9 +334,9 @@ void MysecSwitch::conectaServidorCentral() {
       _mysecDeviceState.flags |= 1;
     }
   }
+  if (_mysecDeviceState.url.length() == 0) return;
   // tenta obter primeira conexão somente após 30 segundos
   if (millis() - _mysecDeviceState.lastSynch > 29990 || _mysecDeviceState.lastSynch == 0) {
-    _mysecDeviceState.lastSynch = millis();
     // obtém time
     HTTPClient wc_http;
     // tenta conectar -- tudo de uma vez para não precisar guardar a URL
