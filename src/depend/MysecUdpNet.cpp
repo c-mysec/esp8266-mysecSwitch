@@ -45,6 +45,10 @@ String MysecUdpNet::receive(const uint8_t * passkey, uint64_t deviceId) {
 #endif
     uint16_t siz = readInt(buffer);
     if (siz == 0) {
+      if (cb < 48) {
+        // mensagem inválida
+        MYSECSWITCH_DEBUGLN(F("UdpNet receive mensagem de alarme, descartada, mensagem muito pequena"));
+      }
       // as mensagens de alarme começam com 00
       MYSECSWITCH_DEBUGLN(F("UdpNet receive mensagem de alarme"));
       if (estado != 1) {
@@ -72,6 +76,10 @@ String MysecUdpNet::receive(const uint8_t * passkey, uint64_t deviceId) {
         BU64::encode(tPrint, buffer + 48, siz);
         MYSECSWITCH_DEBUGF(F("UdpNet receive buffer:%s\n"), tPrint.c_str());
 #endif
+        if (cb < 48 + siz) {
+          // mensagem inválida
+          MYSECSWITCH_DEBUGF(F("UdpNet receive mensagem de alarme, descartada, mensagem muito pequena, deveria ter %d\n"), siz + 48);
+        }
         Sha256.write((buffer + 48), siz);
       }
       uint8_t * hash2 = Sha256.resultHmac();
@@ -81,7 +89,7 @@ String MysecUdpNet::receive(const uint8_t * passkey, uint64_t deviceId) {
       MYSECSWITCH_DEBUGF(F("UdpNet receive siz:%d val:%d destino:%d origem:%d rechash:%s\n"), siz, val, destino, origem, tPrint.c_str());
       tPrint.remove(0);
       BU64::encode(tPrint, passkey, 32);
-      MYSECSWITCH_DEBUGF(F("UdpNet receive userpasskey: %s\n"), tPrint.c_str());
+//      MYSECSWITCH_DEBUGF(F("UdpNet receive userpasskey: %s\n"), tPrint.c_str());
       tPrint.remove(0);
       BU64::encode(tPrint, hash2, 32);
       MYSECSWITCH_DEBUGF(F("UdpNet receive calchash:%s\n"), tPrint.c_str());

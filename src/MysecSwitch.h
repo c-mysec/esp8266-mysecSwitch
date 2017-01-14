@@ -19,6 +19,7 @@
 class MysecSwitch {
 private:
   bool processaChaveNova();
+  void persisteChaves();
   void processaUdp();
   void conectaServidorCentral();
 public:
@@ -30,10 +31,8 @@ public:
   /**
    * id is the device id on MySec
    */
-  void init(const char * centralServerURL, uint64_t id, int port, bool integraAlarme,
-      const char * passk1, const char * passk2);
-  void init(const char * centralServerURL, uint64_t id, int port, bool integraAlarme,
-      const uint8_t *passk1, const uint8_t * passk2);
+  void init(const char * centralServerURL, uint64_t id, int port, bool integraAlarme, const char * passk2);
+  void init(const char * centralServerURL, uint64_t id, int port, bool integraAlarme, const uint8_t * passk2);
   String getLastSynchTime();
   /**
    * Insere uma nova configuração para um pino. Deve ser executado uma única vez para cada pino.

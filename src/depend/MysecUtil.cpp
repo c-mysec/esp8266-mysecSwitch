@@ -41,7 +41,6 @@ String MysecUtil::makeToken(const char* payload, const uint8_t * passkey2) {
   uint8_t *hash;
   String chaveOriginal; chaveOriginal.reserve(44);
   BU64::encode(chaveOriginal, passkey2, 32);
-  MYSECSWITCH_DEBUGF(F("Util makeToken Usando chave: %s\n"), chaveOriginal.c_str());
   Sha256.initHmac(passkey2, 32); // key, and length of key in bytes
   Sha256.print(payload);
   hash = Sha256.resultHmac(); // 32 bytes
@@ -60,8 +59,8 @@ bool MysecUtil::validateToken(const char* payload, const char* receivedToken, co
   uint8_t hash2[32];
   BU64::decode(hash2, receivedToken, 44);
   String r; r.reserve(45);
-  BU64::encode(r, hash2, 32);
-  MYSECSWITCH_DEBUGF(F("Util validateToken Payload: %s\nToken: %s\nCalc Token: %s\nUsando chave: %s\n"), payload, receivedToken, r.c_str(), chaveOriginal.c_str());
+  BU64::encode(r, hash, 32);
+  MYSECSWITCH_DEBUGF(F("Util validateToken Payload: %s\nToken: %s\nCalc Token: %s\n"), payload, receivedToken, r.c_str());
   return (memcmp(hash, hash2, 32) == 0);
 }
 

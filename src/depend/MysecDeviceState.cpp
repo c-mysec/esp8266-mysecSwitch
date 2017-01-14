@@ -82,14 +82,14 @@ void MysecDeviceState::updateValues() {
           pinValue[index] = digitalRead(physicalPin[index]);
         }
       }
-      // se o novo valor for diferente do anterior marca para enviar.
-      if (value != pinValue[index]) {
-        if (state == STATE_IDLE) state = STATE_HASDATA;
-      }
+//      // se o novo valor for diferente do anterior marca para enviar.
+//      if (value != pinValue[index]) {
+//        if (state == STATE_IDLE) state = STATE_HASDATA;
+//      }
     }
   }
 }
-uint16_t MysecDeviceState::getValue(uint8_t pin) {
+double MysecDeviceState::getValue(uint8_t pin) {
   uint8_t index = 10;
   for (int i = 0; i < numPins; i++) {
     if (pinNumber[i] == pin) {
@@ -112,10 +112,10 @@ uint16_t MysecDeviceState::getValue(uint8_t pin) {
             pinValue[index] = digitalRead(physicalPin[index]);
           }
         }
-        // se o novo valor for diferente do anterior marca para enviar.
-        if (value != pinValue[index]) {
-          if (state == STATE_IDLE) state = STATE_HASDATA;
-        }
+//        // se o novo valor for diferente do anterior marca para enviar.
+//        if (value != pinValue[index]) {
+//          if (state == STATE_IDLE) state = STATE_HASDATA;
+//        }
       }
     }
     return pinValue[index];
@@ -124,7 +124,7 @@ uint16_t MysecDeviceState::getValue(uint8_t pin) {
   }
 }
 
-bool MysecDeviceState::setValue(uint8_t pin, float value) {
+bool MysecDeviceState::setValue(uint8_t pin, double value) {
   uint8_t index = 10;
   for (int i = 0; i < numPins; i++) {
     if (pinNumber[i] == pin) {
@@ -137,14 +137,14 @@ bool MysecDeviceState::setValue(uint8_t pin, float value) {
     if (getAutomatic(index) && !getOutput(index)) {
       return false;
     }
-    // é input, não é automático ou é output, está configurado e está dentro do range
-    uint16_t newValue = (uint16_t)(value + 0.5);
-    if (newValue != pinValue[index]) {
-      if (state == STATE_IDLE) state = STATE_HASDATA;
-    }
-    pinValue[index] = newValue;
+//    // é input, não é automático ou é output, está configurado e está dentro do range
+//    if (value != pinValue[index]) {
+//      if (state == STATE_IDLE) state = STATE_HASDATA;
+//    }
+    pinValue[index] = value;
     if (getAutomatic(index)) {
-      // sendo automático e output, aplica o valor
+      // sendo automático e output, aplica o valor, o valor automático é digital ou 0 a 1023.
+      uint16_t newValue = (uint16_t)(value + 0.5);
       if (getDigital(index)) {
         digitalWrite(physicalPin[index], newValue);
       } else {
@@ -157,7 +157,7 @@ bool MysecDeviceState::setValue(uint8_t pin, float value) {
     return false;
   }
 }
-bool MysecDeviceState::resetValue(uint8_t pin, float value) {
+bool MysecDeviceState::resetValue(uint8_t pin, double value) {
   uint8_t index = 10;
   for (int i = 0; i < numPins; i++) {
     if (pinNumber[i] == pin) {
@@ -169,12 +169,11 @@ bool MysecDeviceState::resetValue(uint8_t pin, float value) {
     if (!getOutput(index)) {
       return false;
     }
-    // é output
-    uint16_t newValue = (uint16_t)(value + 0.5);
-    if (newValue != pinValue[index]) {
-      if (state == STATE_IDLE) state = STATE_HASDATA;
-    }
-    pinValue[index] = newValue;
+//    // é output
+//    if (value != pinValue[index]) {
+//      if (state == STATE_IDLE) state = STATE_HASDATA;
+//    }
+    pinValue[index] = value;
     return true;
   } else {
     return false;

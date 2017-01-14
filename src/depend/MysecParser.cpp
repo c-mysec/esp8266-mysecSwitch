@@ -51,7 +51,11 @@ String MysecParser::makeUrlRequest(uint32_t m) {
   root[F("id")] = MysecUtil::ulltoa(_mysecDeviceState.id);
   int32_t elapsed = (m - _mysecDeviceState.lasttimeMillis);
   root[FPSTR(PM_TIME)] = MysecUtil::ulltoa(_mysecDeviceState.timeoffset + elapsed);
-  root[FPSTR(PM_FASE)] = 0;
+  if (_mysecDeviceState.passkey1[0] == 0 && _mysecDeviceState.passkey1[1] == 0 && _mysecDeviceState.passkey1[2] == 0) {
+    root[FPSTR(PM_FASE)] = 2;
+  } else {
+    root[FPSTR(PM_FASE)] = 1;
+  }
   root[FPSTR(PM_S)] = m;
   String buffer;
   buffer.reserve(root.measureLength()+1);

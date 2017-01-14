@@ -74,6 +74,7 @@ int MysecHttpNet::request(String& uri, String &payload, String &response, HTTPCl
       wc_http.end();
       // agora processa a resposta e atualiza a estrutura
       // A resposta contém o próximo estado
+      _mysecDeviceState.lastSynchOk = millis();
       if (result == 200) {
         String respToken2 = MysecUtil::makeToken(response.c_str(), _mysecDeviceState.passkey2);
         MYSECSWITCH_DEBUGF(F("HttpNet request Response=%s\n"), response.c_str());

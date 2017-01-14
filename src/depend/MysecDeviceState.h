@@ -27,6 +27,7 @@ public:
   uint64_t timeoffset = 0;
   uint32_t lasttimeMillis = 0;
   uint32_t lastSynch = 0;
+  uint32_t lastSynchOk = 0;
   String url;
   uint64_t id = 0;
   uint32_t tag1 = 1;
@@ -38,8 +39,8 @@ public:
 
   uint8_t pinNumber[DEF_NUMPINS];
   uint8_t physicalPin[DEF_NUMPINS];
-  uint16_t pinValue[DEF_NUMPINS];
-  float pinNextValue[DEF_NUMPINS]; // até 1024
+  double pinValue[DEF_NUMPINS];
+  double pinNextValue[DEF_NUMPINS];
   uint32_t when[DEF_NUMPINS]; // quando vai mudar para o pinNextValue, valor ajustado para o millis() local em segundos.
   int8_t tempoLigado[DEF_NUMPINS]; // zero indica que não é intermitente -- em minutos, < 0 eh manual
   int8_t tempoDesligado[DEF_NUMPINS]; // zero indica que não é intermitente -- em minutos
@@ -83,7 +84,7 @@ public:
    * Informa para a API o valor de um pino de input/entrada que não é automático (onde a api não lê o pino diretamente).<br>
    * Se um pino for de saída, avisa o servidor que o pino mudou como se fosse um pino de entrada e ser for automático, aplica o novo valor no pino.
    */
-  bool setValue(uint8_t pinNumber, float pinValue);
+  bool setValue(uint8_t pinNumber, double pinValue);
   /**
    * Para um pino do tipo output, informa o valor atual (ou que deveria ser atual).<br>
    * No modo automático, a API ajusta o valor do pino automaticamente (digitalWrite ou analogWrite),
@@ -91,13 +92,13 @@ public:
    * algum outro código alterar o valor depois, a API não saberá).<br>
    * retorna 0xffff caso não seja um pino configurado.
    */
-  uint16_t getValue(uint8_t pinNumber);
+  double getValue(uint8_t pinNumber);
   /**
    * Força o valor da variável interna. Útil para pinos que não são automáticos e precisam de um comando único.
    * Deve ser chamado após o getValue. Assim, não lerá o comando 2 vezes.
    * Só tem efeito para pino do tipo Output.
    */
-  bool resetValue(uint8_t pinNumber, float pinValue);
+  bool resetValue(uint8_t pinNumber, double pinValue);
   void updateValues();
 };
 extern MysecDeviceState _mysecDeviceState;

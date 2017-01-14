@@ -26,28 +26,20 @@
 #include "FS.h"
 #endif
 
-void MysecSwitch::init(const char * centralServerURL, uint64_t id, int port, bool integraAlarme,
-    const char * passk1, const char * passk2) {
-  uint8_t pk1[32];
+void MysecSwitch::init(const char * centralServerURL, uint64_t id, int port, bool integraAlarme, const char * passk2) {
   uint8_t pk2[32];
-  if (strlen(passk1) == 44 && strlen(passk2) == 44) {
+  if (strlen(passk2) == 44) {
     BU64::decode(pk2, passk2, 44);
-    BU64::decode(pk1, passk1, 44);
-    MYSECSWITCH_DEBUGF(F("Switch init p1=%s; p2=%s DEF_NUMPINS=%d\n"), passk1, passk2, DEF_NUMPINS);
+    init(centralServerURL, id, port, integraAlarme, pk2);
   } else {
-    memset(pk2, 0, 32);
-    memset(pk1, 0, 32);
+    // se não for passado passkey2 não funciona nada
+    MYSECSWITCH_ERRORLN(F("Switch init passkey2 é obrigatório"));
   }
-  init(centralServerURL, id, port, integraAlarme, pk1, pk2);
 }
-void MysecSwitch::init(const char * centralServerURL, uint64_t id, int port, bool integraAlarme,
-    const uint8_t * passk1, const uint8_t * passk2) {
+void MysecSwitch::init(const char * centralServerURL, uint64_t id, int port, bool integraAlarme, const uint8_t * passk2) {
   MYSECSWITCH_DEBUGF(F("Switch init DEF_NUMPINS=%d\n"), DEF_NUMPINS);
   _mysecDeviceState.url = centralServerURL;
   _mysecDeviceState.id = id;
-  if (port != 0) {
-    _mysecUdpNet.init(port, integraAlarme);
-  }
   _mysecDeviceState.numPins = 0;
   _mysecDeviceState.pb2.reserve(44);
   _mysecDeviceState.pb2.remove(0);
@@ -62,19 +54,18 @@ void MysecSwitch::init(const char * centralServerURL, uint64_t id, int port, boo
     _mysecDeviceState.setNextValueSet(i, false);
   }
   memcpy(_mysecDeviceState.passkey2, passk2, 32);
-  memcpy(_mysecDeviceState.passkey1, passk1, 32);
 #ifndef MYSECSWITCH_NOFILE
   MYSECSWITCH_DEBUGLN(F("Switch init Gerenciamento de chaves em arquivo"));
   SPIFFS.begin();
-  File f = SPIFFS.open(F("/mysec123/c.c"), "r");
-  if (f) {
+  if (SPIFFS.exists(F("/mysec/c.c"))) {
+    File f = SPIFFS.open(F("/mysec/c.c"), "r");
     uint8_t current[32];
     uint8_t old[32];
     String c = f.readStringUntil('\n');
     String o = f.readStringUntil('\n');
     if (o.length() >= 44 && c.length() >= 44) {
       int declen = BU64::decode(old, o.c_str(), 44);
-      MYSECSWITCH_DEBUGF(F("Switch init Chave corrente=%s\n"), c.c_str());
+      MYSECSWITCH_DEBUGLN(F("Switch init chave corrente recuperada"));
       if (declen == 32) {
         // se a chave antiga gravada é a mesma que está no código, então usa a chave nova gravada
         // a comparação com achave antiga gravada é para previnir a regeração de chave manual.
@@ -83,16 +74,37 @@ void MysecSwitch::init(const char * centralServerURL, uint64_t id, int port, boo
           if (declen == 32) {
             memcpy(_mysecDeviceState.passkey2, current, 32);
             MYSECSWITCH_DEBUGLN(F("Switch init Usando chave corrente"));
+            String p1 = f.readStringUntil('\n');
+            if (p1.length() >= 44) {
+              declen = BU64::decode(current, p1.c_str(), 44);
+              if (declen == 32) {
+                memcpy(_mysecDeviceState.passkey1, current, 32);
+                MYSECSWITCH_DEBUGLN(F("Switch init Chave de usuário obtida"));
+                if (port != 0) {
+                  _mysecUdpNet.init(port, integraAlarme);
+                }
+              } else {
+                MYSECSWITCH_ERRORLN(F("Switch init Chave de usuário inválida"));
+                memset(_mysecDeviceState.passkey1, 0, 32);
+              }
+            } else {
+              MYSECSWITCH_DEBUGLN(F("Switch init Chave de usuário não configurada"));
+              memset(_mysecDeviceState.passkey1, 0, 32);
+            }
             SPIFFS.end();
             return;
           }
         }
       }
     }
-    MYSECSWITCH_DEBUGLN(F("Switch init Usando chave original"));
+    MYSECSWITCH_DEBUGLN(F("Switch init Usando chave original. Chave de usuário não configurada"));
+    memset(_mysecDeviceState.passkey1, 0, 32);
     // o arquivo em disco está errado
     f.close();
-    SPIFFS.remove(F("/mysec123/c.c"));
+    SPIFFS.remove(F("/mysec/c.c"));
+  } else {
+    MYSECSWITCH_DEBUGLN(F("Switch init Repositorio inexistente. Usando chave original. Chave de usuário não configurada"));
+    memset(_mysecDeviceState.passkey1, 0, 32);
   }
   SPIFFS.end();
 #endif
@@ -115,22 +127,56 @@ uint16_t MysecSwitch::getValue(uint8_t pinNumber) {
 bool MysecSwitch::resetValue(uint8_t pinNumber, float pinValue) {
   return _mysecDeviceState.resetValue(pinNumber, pinValue);
 }
-
+void MysecSwitch::persisteChaves() {
+  SPIFFS.begin();
+  String chaveOriginal; chaveOriginal.reserve(44);
+  if (SPIFFS.exists(F("/mysec/c.c"))) {
+    File f = SPIFFS.open(F("/mysec/c.c"), "r");
+    // se a chave original está no arquivo, conserva ela
+    String aChaveEmUso = f.readStringUntil('\n');
+    String aChaveOriginal = f.readStringUntil('\n');
+    if (aChaveOriginal.length() >= 44 && aChaveEmUso.length() >= 44) {
+      chaveOriginal = aChaveOriginal;
+    } else {
+      MYSECSWITCH_ERRORLN(F("Switch persisteChaves arquivo de chaves corrompido"));
+      // se a chave original não está no arquivo, então a chave atual em uso é a original
+      BU64::encode(chaveOriginal, _mysecDeviceState.passkey2, 32);
+    }
+    f.close();
+  } else {
+    // se a chave original não está no arquivo, então a chave atual em uso é a original
+    BU64::encode(chaveOriginal, _mysecDeviceState.passkey2, 32);
+  }
+  String passkey;passkey.reserve(44);
+  BU64::encode(passkey, _mysecDeviceState.passkey2, 32);
+  File f2 = SPIFFS.open(F("/mysec/c.c"), "w");
+  f2.print(passkey);
+  f2.print('\n');
+  f2.print(chaveOriginal);
+  f2.print('\n');
+  passkey.remove(0);
+  if (_mysecDeviceState.passkey1[0] != 0 && _mysecDeviceState.passkey1[1] != 0 && _mysecDeviceState.passkey1[2] != 0) {
+    BU64::encode(passkey, _mysecDeviceState.passkey1, 32);
+  }
+  f2.print(passkey);
+  f2.print('\n');
+  f2.close();
+  _mysecDeviceState.pb2.remove(0);
+  SPIFFS.end();
+}
 bool MysecSwitch::processaChaveNova() {
   // se temos chave nova então processamos
   if (_mysecDeviceState.pb2.length() == 44) {
-    MYSECSWITCH_DEBUGF(F("Switch processaChaveNova Processando nova chave pb2 %s\n"),
-        _mysecDeviceState.pb2.c_str());
+    MYSECSWITCH_DEBUGF(F("Switch processaChaveNova Processando nova chave pb2 %s\n"), _mysecDeviceState.pb2.c_str());
     uint8_t ipb2[32];
     if (BU64::decode(ipb2, _mysecDeviceState.pb2.c_str(), 44) == 32) {
       uint8_t sharedkey[32];
-      MYSECSWITCH_DEBUGF(F("Switch processaChaveNova init curve pb2=%s\n"), _mysecDeviceState.pb2.c_str());
       _mysecDeviceState.pb2.remove(0);
       BU64::encode(_mysecDeviceState.pb2, _mysecDeviceState.nextPb1, 32);
       MYSECSWITCH_DEBUGF(F("Switch processaChaveNova pb1=%s\n"), _mysecDeviceState.pb2.c_str());
       _mysecDeviceState.pb2.remove(0);
       BU64::encode(_mysecDeviceState.pb2, _mysecDeviceState.nextPk1, 32);
-      MYSECSWITCH_DEBUGF(F("Switch processaChaveNova pk1=%s\n"), _mysecDeviceState.pb2.c_str());
+      MYSECSWITCH_DEBUGLN(F("Switch processaChaveNova pk1"));
       delay(0);
       Curve25519::dh2(ipb2, _mysecDeviceState.nextPk1);
       memcpy(sharedkey, ipb2, 32);
@@ -139,49 +185,17 @@ bool MysecSwitch::processaChaveNova() {
       Sha256.init();
       Sha256.write(sharedkey, 32);
       hash = Sha256.result(); // 32 bytes
-      String chaveOriginal;
-      SPIFFS.begin();
-      File f = SPIFFS.open(F("/mysec123/c.c"), "r");
-      if (f) {
-        // se a chave original está no arquivo, conserva ela
-        String aChaveEmUso = f.readStringUntil('\n');
-        String aChaveOriginal = f.readStringUntil('\n');
-        if (aChaveOriginal.length() >= 44 && aChaveEmUso.length() >= 44) {
-          chaveOriginal = aChaveOriginal;
-        } else {
-          MYSECSWITCH_ERRORLN(F("Switch processaChaveNova arquivo de chaves corrompido"));
-          // se a chave original não está no arquivo, então a chave atual em uso é a original
-          chaveOriginal.reserve(44);
-          BU64::encode(chaveOriginal, _mysecDeviceState.passkey2, 32);
-        }
-        f.close();
-      } else {
-        // se a chave original não está no arquivo, então a chave atual em uso é a original
-        chaveOriginal.reserve(44);
-        BU64::encode(chaveOriginal, _mysecDeviceState.passkey2, 32);
-      }
       // passa a usar a nova chave
       memcpy(_mysecDeviceState.passkey2, hash, 32);
       memset(_mysecDeviceState.nextPb1, 0, 32);
       memset(_mysecDeviceState.nextPk1, 0, 32);
-      File f2 = SPIFFS.open(F("/mysec123/c.c"), "w");
-      if (f2) {
-        _mysecDeviceState.pb2.remove(0);
-        BU64::encode(_mysecDeviceState.pb2, hash, 32);
-        MYSECSWITCH_DEBUGF(F("Switch processaChaveNova nova shared key=%s\n"),
-            _mysecDeviceState.pb2.c_str());
-        f2.print(_mysecDeviceState.pb2);
-        f2.print('\n');
-        f2.print(chaveOriginal);
-        f2.print('\n');
-        f2.close();
-      }
-      SPIFFS.end();
+      persisteChaves();
     }
     _mysecDeviceState.pb2.remove(0);
     // sinaliza para enviar mensagem para que o servidor também passe a usar a chave nova
     // caso contrário as mensagens do servidor seriam ignoradas até que o dispositivo enviasse uma mensagem
     _mysecDeviceState.lastSynch = 1;
+    _mysecDeviceState.lastSynchOk = 1;
     return true;
   } else if (_mysecDeviceState.nextPk1[0] == 0
       && _mysecDeviceState.nextPk1[1] == 0 && _mysecDeviceState.nextPk1[2] == 0
@@ -197,11 +211,8 @@ bool MysecSwitch::processaChaveNova() {
 }
 
 void MysecSwitch::processaUdp() {
-  // se não temos chave nova então podemos processar as mensagens
-  // Http ou Websockets
   // Agora processa UDP.
-  if (_mysecUdpNet.isConfigured()
-      && !_mysecUdpNet.makeSharedKey(_mysecDeviceState.passkey1)) {
+  if (_mysecUdpNet.isConfigured() && !_mysecUdpNet.makeSharedKey(_mysecDeviceState.passkey1)) {
     // se usamos udpNet e se não estamos fazendo sharedkey nova, sincronizamos UDP
     String resp = _mysecUdpNet.receive(_mysecDeviceState.passkey1, _mysecDeviceState.id);
     if (resp.length() > 0) {
@@ -229,13 +240,11 @@ void MysecSwitch::processaUdp() {
           acende = false;
         }
         for (int index = 0; index < _mysecDeviceState.numPins; index++) {
-          if (_mysecDeviceState.getDigital(index)
-              && _mysecDeviceState.getOutput(index)
-              && _mysecDeviceState.getAutomatic(index)) {
+          if (_mysecDeviceState.getDigital(index) && _mysecDeviceState.getOutput(index) && _mysecDeviceState.getAutomatic(index)) {
             // acende todos os pinos automáticos
             // estamos em fired ou test fired
-            digitalWrite(_mysecDeviceState.physicalPin[index],
-                acende | _mysecDeviceState.pinValue[index]);
+            uint16_t newValue = (uint16_t)(_mysecDeviceState.pinValue[index] + 0.5);
+            digitalWrite(_mysecDeviceState.physicalPin[index], acende | newValue);
             if (_mysecUdpNet.getHab() == -2) {
               _mysecUdpNet.setHab(-3);
               // só mostra na primeira passada.
@@ -276,15 +285,17 @@ void MysecSwitch::loop() {
     if (_mysecDeviceState.state == MysecDeviceState::STATE_DISCONNECTED) {
       conectaServidorCentral();
     } else if (_mysecDeviceState.lastSynch + (30 * 1000) < millis()) {
+      MYSECSWITCH_DEBUGF(F("Switch loop Verificando sincronização a cada 30 segundos millis=%lu, lastSynch=%lu, lastSynchOk=%lu, connType=%d\n"), millis(),
+          _mysecDeviceState.lastSynch, _mysecDeviceState.lastSynchOk, _mysecDeviceState.connType);
       // a cada 30 segundos
       // atualiza valores de leitura automática
       _mysecDeviceState.updateValues();
       // não adianta aumentar este valor pois o servidor irá barrar e até bloquear caso tente enviar mais
       uint32_t interval = ((_mysecDeviceState.flags & 1) > 0) ? OUTPUT_UPDATE_INTERVAL : INPUT_UPDATE_INTERVAL;
+      _mysecDeviceState.lastSynch = millis();
       if (// a cada 5 minutos manda uma mensagem de qualquer forma, o servidor vai filtrar para 1 valor de leitura a cada 30 minutos
-          (_mysecDeviceState.lastSynch == 1 || _mysecDeviceState.lastSynch + (300 * 1000) < millis()) &&
+          (_mysecDeviceState.lastSynchOk <= 1 || _mysecDeviceState.lastSynchOk + (300 * 1000) < millis() || _mysecDeviceState.state == MysecDeviceState::STATE_HASDATA) &&
           _mysecDeviceState.connType == MysecDeviceState::TYPE_WEBSOCKET) {
-          _mysecDeviceState.lastSynch = millis();
           // agora pode processar normalmente
           // sincroniza
           {
@@ -293,13 +304,14 @@ void MysecSwitch::loop() {
             String payload = _mysecDeviceState.mysecParser->makePayload(m, 2, _mysecDeviceState.nextPb1[0] != 0 && _mysecDeviceState.nextPb1[1] != 0 && _mysecDeviceState.nextPb1[2] != 0);
             MYSECSWITCH_DEBUGLN(F("Switch loop Sincronizando com servidor e viewer"));
             _mysecUdpNet.send(payload);
-            _mysecWebsocketNet.send(F("SYNCH"), payload); // recebe resposta no callback
+            _mysecWebsocketNet.send(F("SYNCH"), payload);
+            // recebe resposta no callback
           }
           _mysecDeviceState.state = MysecDeviceState::STATE_IDLE;
       } else if (( // no caso de HTTP envia a cada 30 minutos
           // o servidor só vai aceitar 1 valor a cada 30 minutos
-          (_mysecDeviceState.lastSynch <= 1 || _mysecDeviceState.lastSynch + interval < millis()) && _mysecDeviceState.connType == MysecDeviceState::TYPE_HTTP)) {
-        _mysecDeviceState.lastSynch = millis();
+          (_mysecDeviceState.lastSynchOk <= 1 || _mysecDeviceState.lastSynchOk + interval < millis() || _mysecDeviceState.state == MysecDeviceState::STATE_HASDATA) &&
+            _mysecDeviceState.connType == MysecDeviceState::TYPE_HTTP)) {
         // http
         MYSECSWITCH_DEBUGF(F("Switch loop url=%s\n"), _mysecDeviceState.url.c_str());
         HTTPClient wc_http;
@@ -349,6 +361,7 @@ void MysecSwitch::conectaServidorCentral() {
       MYSECSWITCH_DEBUGF(F("Switch connectaServidorCentral UrlRequest enviando requisição %s\n"), payload.c_str());
       String uriUrlRequest(F("/rest/websocketurl/device"));
       bool resultado = _mysecHttpNet.request(uriUrlRequest, payload, response, wc_http) == 0;
+      _mysecDeviceState.lastSynchOk = 0;
       if (resultado) {
         StaticJsonBuffer<1000> jsonBuffer;
         JsonObject& rdata = jsonBuffer.parseObject(response);
@@ -360,12 +373,24 @@ void MysecSwitch::conectaServidorCentral() {
           MYSECSWITCH_ERRORLN(F("Switch connectaServidorCentral UrlRequest timestamp failed"));
           return; // continua no estado 0 e tenta novamente mais tarde
         }
+        if (_mysecDeviceState.pb2.length() == 44) {
+          MYSECSWITCH_ERRORLN(F("Switch connectaServidorCentral UrlRequest Regerar chaves a pedido do servidor"));
+          return;
+        }
         String wshost = rdata[F("host")];
         String wsport = rdata[F("port")];
         String wssecure = rdata[F("connectionType")];
         String wsauth = rdata[F("token")];
         String wsuri; wsuri.reserve(200);
         String uri = rdata[F("uri")];
+        String p1 = rdata[F("p1")];
+        if (p1 && p1.length() >= 44) {
+          BU64::decode(_mysecDeviceState.passkey1, p1.c_str(), 44);
+          persisteChaves();
+          MYSECSWITCH_DEBUGLN(F("Trocando chaves de usuário. Restart."));
+          delay(1000);
+          ESP.restart();
+        }
         wsuri.concat(uri);
         wsuri.concat('?');
         wsuri.concat(F("device="));
