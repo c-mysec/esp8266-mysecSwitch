@@ -9,7 +9,7 @@ With ESP8266-mysecSwitch library you can control and monitor you ESP8266 IOT dev
 2. Directly (without any server) from your local-area-network using
    * MysecSwitch Android App (a viewer)
 
-With ESP8266-mysecSwitch all messages exchanged between two entities (web server, android and iot devices) are signed with HMAC-SHA256. Almost all other libraries uses simple fixed token.
+With ESP8266-mysecSwitch all messages exchanged between two entities (web server, android and iot devices) are signed with HMAC-SHA256.
 HMAC-SHA256 session keys are generated using Curve25519 key exchange and they are re-created frequently.
 
 ESP8266-mysecSwitch also integrate into Mysec WifiAlarm system events (activation, deactivation and fired), activating  everything on intrusion detection for example.
@@ -18,29 +18,33 @@ To use this library you need first to register on https://www.thinkingthing.spac
 
 At Mysec Webite you can register all your IOT devices.
 
-Every device can have virtual pins. A pin can be for INPUT (sensor pin) or OUTPUT (control pin).
+Every device can have virtual pins. A virtual pin can be for INPUT (sensor pin) or OUTPUT (control pin).
 
-For INPUT type pin, data flow from your sensor to ESP8266 device to Website then to a Viewer.
+For INPUT type virtual pin, data flow from your sensor to ESP8266 device to Website then to a Viewer.
 
-For OUTPUT type pin, data flow from your ESP8266 device to Website then to a Viewer and also in the reverse direction.
+For OUTPUT type virtual pin, data flow from your ESP8266 device to Website then to a Viewer and also in the reverse direction.
 
 When your viewer is at the same LAN as the ESP8266 device the viewer connects directly to the device and data flow from the sensor to the ESP8266 to the viewer.
 
 **why bi-directional communication for OUTPUT type pin?**
 
-Because Viewer can control ESP8266 device directly when at the same LAN, the Webserver has to be notified about changes made from the viewer and the Viewer has to be notified about change made from the web. Also, you can also change pin state from your sketch and both viewer and website have to be updated.
+Because a Viewer can control ESP8266 devices directly when at the same LAN, the Webserver has to be notified about changes made from the viewer and the Viewer has to be notified about change made from the web. Also, you can also change pin state from your sketch and both viewer and website have to be updated.
 
 **Virtual pins**
 
-Every pin has a pin number. This pin number can be an ESP8266 GPIO pin or any other integral number.
+A virtual pin is a value to be controled or monitored. A virtual pin can be directly associated with an ESP8266 GPIO pin, but it does not need to be.
+
+Every virtual pin has a pin number that is used to identify the virtual pin. This virtual pin number is not related to the physical pin number (or GPIO number), it is only an identification of the virtual pin in the system.
+
+A simple virtual pin can be directly associated with a physical GPIO.
 
 A virtual pin assigned with a GPIO pin number can be set to be controled/monitored automatically by the library, meaning that commands sent from viewer or website will be automatically flow to the physical ESP8266 GPIO pin and values will be read automatically from ESP8266 GPIO physical pin for an INPUT virtual pin.
 
-For an OUTPUT virtual pin not set to be controled automatically by the library your sketch needs to periodically read commands from the library.
+For an OUTPUT virtual pin not set to be controled automatically by the library, your sketch needs to periodically read commands from the library.
 
-For an INPUT virtual pin not set to be monitored automatically by the library your sketch needs to update the library when monitored value changes.
+For an INPUT virtual pin not set to be monitored automatically by the library, your sketch needs to update the library when monitored values changes.
 
-As a plus, for automatic OUTPUT pins, at Mysec Website you can program timers to change virtual pin state.
+As a plus, for automatic OUTPUT pins, at Mysec Website you can program timers to automate changes virtual pin state.
 
 ## Installation
 To use this library you need an Arduino Ide environment and libraries and Arduino core for ESP8266 WiFi chip.
@@ -58,11 +62,11 @@ You also need to install these two dependencies:
 
 ## Usage
 
-*see the sample sketch in the repository for an overview.*
+*see the sample sketches in the repository for an overview.*
 
 1. Import the library
 ```#include <MysecSwitch.h>```
-2. Create minimum instances for Wifi and MysecSwitch
+2. Create instances of Wifi and MysecSwitch
 ```
 ESP8266WiFiMulti wifiMulti;
 MysecSwitch dev;
@@ -85,9 +89,8 @@ MysecSwitch dev;
     // id       -> ID for the device given by Mysec Website
     // port     -> UDP port for local LAN connection with a viewer
     // true     -> set to true if you want this device to respond to Mysec Alarm events
-    // passkey1 -> User passkey generated by Mysec Website (you may already received it by e-mail)
-    // passkey2 -> Initial device passkey generated by Mysec Website, this passkey will be replaced at device synchronization.
-    dev.init(url, id, port, true, passkey1, passkey2);
+    // passkey2 -> Device passkey generated by Mysec Website, this passkey is used the first time your device connects with the server. If after initialization, you pass a different passkey next time, the library will think you want to reset criptographic keys and performa a new initialization when connecting with the server and other devices.
+    dev.init(url, id, port, true, passkey2);
 ```
 5. Setup physical GPIO pin
 ```
@@ -109,7 +112,40 @@ MysecSwitch dev;
 7. Let MysecSwitch work for you
 ```
 void loop() {
-  // do the magic
   dev.loop();
 }
 ```
+
+** Non-automatic virtual pins **
+
+This library can automatically manage (monitor or control) a value that can be directly applied or read from a physical GPIO (a digital value or an integer value between 0 and 1023). For example, suppose you have an intruder detection system, on of the virtual pins should be the sensor id. The sensor id is a complex value since it has to be calculated by your code and thus cannot be automatically controled by the library.
+
+If you have virtual pins which are not automatically controlled by the library you need to notify the library of changes (for INPUT virtual pins) and you need get new values (or commands) from the library and apply them.
+
+For example, to monitor a DTH22 temperature sensor you need to use a library designed specifically to that sensor. Probably you have something like this:
+1. Create instances
+```
+DHT dht(DHTPIN, DHTTYPE);
+MysecSwitch dev;
+```
+2. Setup DHT API
+```
+dht.begin
+```
+3. Setup an analog non-automatic virtual pin
+```
+dev.init(url, id, port, true, passkey2);
+dev.setupPin(1, false /*input*/, false /*analog*/, false/*not automatic*/, 0/*no physical pin*/);
+dev.setupPin(2, false /*input*/, false /*analog*/, false/*not automatic*/, 0/*no physical pin*/);
+```
+4. Acquire the complex value
+```
+float h = dht.readHumidity();
+float f = dht.readTemperature(true);
+```
+5. Inform mysecSwitch API with the new value
+```
+dev.setValue(1, h);
+dev.setValue(3, f);
+```
+
