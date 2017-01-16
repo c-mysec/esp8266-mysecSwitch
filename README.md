@@ -116,7 +116,7 @@ void loop() {
 }
 ```
 
-** Non-automatic virtual pins **
+**Non-automatic virtual pins**
 
 This library can automatically manage (monitor or control) a value that can be directly applied or read from a physical GPIO (a digital value or an integer value between 0 and 1023). For example, suppose you have an intruder detection system, on of the virtual pins should be the sensor id. The sensor id is a complex value since it has to be calculated by your code and thus cannot be automatically controled by the library.
 
