@@ -48,6 +48,7 @@ public:
   uint8_t pinFlags[DEF_NUMPINS];
   uint8_t flags = 0;
   uint8_t numPins = 0;
+  uint8_t numHttpErrors = 0;
   MYSEC_STATE state = STATE_DISCONNECTED;
   MYSEC_TYPE connType = TYPE_WEBSOCKET;
   MysecDeviceState(){
@@ -58,6 +59,7 @@ public:
   ~MysecDeviceState(){
     delete mysecParser;
   };
+  void setNextSynch();
   void setNextValueSet(uint8_t pin, bool f);
   bool getNextValueSet(uint8_t pin);
   void setOutput(uint8_t pin, bool f);

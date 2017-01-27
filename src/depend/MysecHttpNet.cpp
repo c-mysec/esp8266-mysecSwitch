@@ -41,6 +41,7 @@ bool MysecHttpNet::getTime(HTTPClient &wc_http) {
         //como millis() é 32 bits, como saber quando tiver overflow?
         _mysecDeviceState.timeoffset = MysecUtil::atoull(resp);
       } else {
+        _mysecDeviceState.numHttpErrors++;
         wc_http.end();
         return false;
       }
@@ -74,7 +75,7 @@ int MysecHttpNet::request(String& uri, String &payload, String &response, HTTPCl
       wc_http.end();
       // agora processa a resposta e atualiza a estrutura
       // A resposta contém o próximo estado
-      _mysecDeviceState.lastSynchOk = millis();
+      _mysecDeviceState.setNextSynch();
       if (result == 200) {
         String respToken2 = MysecUtil::makeToken(response.c_str(), _mysecDeviceState.passkey2);
         MYSECSWITCH_DEBUGF(F("HttpNet request Response=%s\n"), response.c_str());
@@ -82,12 +83,15 @@ int MysecHttpNet::request(String& uri, String &payload, String &response, HTTPCl
         MYSECSWITCH_DEBUGF(F("HttpNet request gen respToken=%s\n"), respToken2.c_str());
         if (respToken == respToken2) {
           wc_http.end();
+          _mysecDeviceState.numHttpErrors = 0;
           return 0; // 0 ok
         }
+        _mysecDeviceState.numHttpErrors++;
         result = -999; // assinatura inválida
       }
     }
-    MYSECSWITCH_DEBUGF(F("HttpNet request Retornou erro do servidor %d\n"), result);
+    _mysecDeviceState.numHttpErrors++;
+    MYSECSWITCH_DEBUGF(F("HttpNet request Retornou erro do servidor %d %d\n"), result, _mysecDeviceState.numHttpErrors);
     if (result != 429) {
       // ignora quando o erro for TooManyRequests
       _mysecDeviceState.timeoffset = 0; // será necessário obter novamente o timestamp

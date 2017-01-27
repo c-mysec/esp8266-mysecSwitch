@@ -81,7 +81,7 @@ void MysecWebsocketNet::send(const __FlashStringHelper *msgid, String& payload) 
     p.concat(payload);
     MYSECSWITCH_DEBUGF(F("WebsocketNet send Enviando: %s\n"), p.c_str());
     if (webSocket.sendTXT(p)) {
-      _mysecDeviceState.lastSynchOk = millis();
+      _mysecDeviceState.setNextSynch();
     }
   }
 }

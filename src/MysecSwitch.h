@@ -13,9 +13,6 @@
 #define MYSECSWITCH_H_
 
 
-#define INPUT_UPDATE_INTERVAL  1800000
-#define OUTPUT_UPDATE_INTERVAL  120000
-
 class MysecSwitch {
 private:
   bool processaChaveNova();
