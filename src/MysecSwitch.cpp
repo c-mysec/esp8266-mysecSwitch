@@ -40,7 +40,7 @@ void MysecSwitch::init(const char * centralServerURL, uint64_t id, int port, boo
   }
 }
 void MysecSwitch::init(const char * centralServerURL, uint64_t id, int port, bool integraAlarme, const uint8_t * passk2) {
-  MYSECSWITCH_DEBUGF(F("Switch init DEF_NUMPINS=%d\n"), DEF_NUMPINS);
+  MYSECSWITCH_INFOF(F("Switch init DEF_NUMPINS=%d\n"), DEF_NUMPINS);
   _mysecDeviceState.url = centralServerURL;
   _mysecDeviceState.id = id;
   _mysecDeviceState.numPins = 0;
@@ -58,7 +58,7 @@ void MysecSwitch::init(const char * centralServerURL, uint64_t id, int port, boo
   }
   memcpy(_mysecDeviceState.passkey2, passk2, 32);
 #ifndef MYSECSWITCH_NOFILE
-  MYSECSWITCH_DEBUGLN(F("Switch init Gerenciamento de chaves em arquivo"));
+  MYSECSWITCH_INFOLN(F("Switch init Gerenciamento de chaves em arquivo"));
   SPIFFS.begin();
   if (SPIFFS.exists(F("/mysec/c.c"))) {
     File f = SPIFFS.open(F("/mysec/c.c"), "r");
@@ -68,7 +68,7 @@ void MysecSwitch::init(const char * centralServerURL, uint64_t id, int port, boo
     String o = f.readStringUntil('\n');
     if (o.length() >= 44 && c.length() >= 44) {
       int declen = BU64::decode(old, o.c_str(), 44);
-      MYSECSWITCH_DEBUGLN(F("Switch init chave corrente recuperada"));
+      MYSECSWITCH_INFOLN(F("Switch init chave corrente recuperada"));
       if (declen == 32) {
         // se a chave antiga gravada é a mesma que está no código, então usa a chave nova gravada
         // a comparação com achave antiga gravada é para previnir a regeração de chave manual.
@@ -76,13 +76,13 @@ void MysecSwitch::init(const char * centralServerURL, uint64_t id, int port, boo
           declen = BU64::decode(current, c.c_str(), 44);
           if (declen == 32) {
             memcpy(_mysecDeviceState.passkey2, current, 32);
-            MYSECSWITCH_DEBUGLN(F("Switch init Usando chave corrente"));
+            MYSECSWITCH_INFOLN(F("Switch init Usando chave corrente"));
             String p1 = f.readStringUntil('\n');
             if (p1.length() >= 44) {
               declen = BU64::decode(current, p1.c_str(), 44);
               if (declen == 32) {
                 memcpy(_mysecDeviceState.passkey1, current, 32);
-                MYSECSWITCH_DEBUGLN(F("Switch init Chave de usuário obtida"));
+                MYSECSWITCH_INFOLN(F("Switch init Chave de usuário obtida"));
                 if (port != 0) {
                   _mysecUdpNet.init(port, integraAlarme);
                 }
@@ -91,7 +91,7 @@ void MysecSwitch::init(const char * centralServerURL, uint64_t id, int port, boo
                 memset(_mysecDeviceState.passkey1, 0, 32);
               }
             } else {
-              MYSECSWITCH_DEBUGLN(F("Switch init Chave de usuário não configurada"));
+              MYSECSWITCH_INFOLN(F("Switch init Chave de usuário não configurada"));
               memset(_mysecDeviceState.passkey1, 0, 32);
             }
             SPIFFS.end();
@@ -100,23 +100,29 @@ void MysecSwitch::init(const char * centralServerURL, uint64_t id, int port, boo
         }
       }
     }
-    MYSECSWITCH_DEBUGLN(F("Switch init Usando chave original. Chave de usuário não configurada"));
+    MYSECSWITCH_INFOLN(F("Switch init Usando chave original. Chave de usuário não configurada"));
     memset(_mysecDeviceState.passkey1, 0, 32);
     // o arquivo em disco está errado
     f.close();
     SPIFFS.remove(F("/mysec/c.c"));
   } else {
-    MYSECSWITCH_DEBUGLN(F("Switch init Repositorio inexistente. Usando chave original. Chave de usuário não configurada"));
+    MYSECSWITCH_INFOLN(F("Switch init Repositorio inexistente. Usando chave original. Chave de usuário não configurada"));
     memset(_mysecDeviceState.passkey1, 0, 32);
   }
   SPIFFS.end();
 #endif
 #ifdef MYSECSWITCH_NOFILE
-    MYSECSWITCH_DEBUGLN(F("Switch init Gerenciamento externo de chaves"));
+  MYSECSWITCH_INFOLN(F("Switch init Gerenciamento externo de chaves"));
 #endif
 };
 String MysecSwitch::getLastSynchTime() {
   return MysecUtil::formatTime(_mysecDeviceState.timeoffset);
+}
+String MysecSwitch::getLastSynchTimeOk() {
+  return MysecUtil::formatTime(_mysecDeviceState.timeoffsetSyncOk);
+}
+int MysecSwitch::getLastHttpError() {
+  return _mysecDeviceState.lastHttpError;
 }
 bool MysecSwitch::setupPin(uint8_t pinNumber, bool output, bool digital, bool automatic, uint8_t physicalPin) {
   return _mysecDeviceState.setupPin(pinNumber, output, digital, automatic, physicalPin);
@@ -149,7 +155,7 @@ void MysecSwitch::persisteChaves() {
   } else {
     // se a chave original não está no arquivo, então a chave atual em uso é a original
     BU64::encode(chaveOriginal, _mysecDeviceState.passkey2, 32);
-    MYSECSWITCH_DEBUGLN(F("Switch persisteChaves Chaves de disponitivo atual e original são a mesma."));
+    MYSECSWITCH_INFOLN(F("Switch persisteChaves Chaves de disponitivo atual e original são a mesma."));
   }
   String passkey;passkey.reserve(44);
   BU64::encode(passkey, _mysecDeviceState.passkey2, 32);
@@ -161,9 +167,9 @@ void MysecSwitch::persisteChaves() {
   passkey.remove(0);
   if (_mysecDeviceState.passkey1[0] != 0 && _mysecDeviceState.passkey1[1] != 0 && _mysecDeviceState.passkey1[2] != 0) {
     BU64::encode(passkey, _mysecDeviceState.passkey1, 32);
-    MYSECSWITCH_DEBUGLN(F("Switch persisteChaves Chaves de dispositivo e usuário persistidas."));
+    MYSECSWITCH_INFOLN(F("Switch persisteChaves Chaves de dispositivo e usuário persistidas."));
   } else {
-    MYSECSWITCH_DEBUGLN(F("Switch persisteChaves Chaves de dispositivo persistidas (não tem chave de usuário)."));
+    MYSECSWITCH_INFOLN(F("Switch persisteChaves Chaves de dispositivo persistidas (não tem chave de usuário)."));
   }
   f2.print(passkey);
   f2.print('\n');
@@ -179,7 +185,7 @@ bool MysecSwitch::processaChaveNova() {
       uint8_t sharedkey[32];
       _mysecDeviceState.pb2.remove(0);
       BU64::encode(_mysecDeviceState.pb2, _mysecDeviceState.nextPb1, 32);
-      MYSECSWITCH_DEBUGLN(F("Switch processaChaveNova"));
+      MYSECSWITCH_INFOLN(F("Switch processaChaveNova"));
       _mysecDeviceState.pb2.remove(0);
       BU64::encode(_mysecDeviceState.pb2, _mysecDeviceState.nextPk1, 32);
       delay(0);
@@ -208,7 +214,7 @@ bool MysecSwitch::processaChaveNova() {
       && _mysecDeviceState.nextPb1[2] == 0) {
     // se a chave foi trocada então calculamos uma nova
     Curve25519::dh1(_mysecDeviceState.nextPb1, _mysecDeviceState.nextPk1);
-    MYSECSWITCH_DEBUGLN(F("Switch processaChaveNova Novas chaves criadas"));
+    MYSECSWITCH_INFOLN(F("Switch processaChaveNova Novas chaves criadas"));
     return true;
   }
   return false;

@@ -30,7 +30,14 @@ public:
    */
   void init(const char * centralServerURL, uint64_t id, int port, bool integraAlarme, const char * passk2);
   void init(const char * centralServerURL, uint64_t id, int port, bool integraAlarme, const uint8_t * passk2);
+  /**
+   * Retorna o millis da última vez que conseguiu conectar com sucesso com o servidor
+   */
   String getLastSynchTime();
+  /**
+   * Retorna o millis da última vez que conseguiu conectar com sucesso com o servidor e conseguiu sincronizar dados
+   */
+  String getLastSynchTimeOk();
   /**
    * Insere uma nova configuração para um pino. Deve ser executado uma única vez para cada pino.
    * Parâmetro Automatico quando TRUE indica que o pino será gerenciado pela API. Assim, no caso de
@@ -68,7 +75,10 @@ public:
    * Verifica se tem alguma programação ara aplicar e verifica se pode realizar uma nova sincronização com o servidor.
    */
   void loop();
-
+  /**
+   * Retorna o último erro da sincronização com servidor
+   */
+  int getLastHttpError();
 };
 
 #endif /* MYSECSWITCH_H_ */

@@ -81,6 +81,7 @@ int MysecHttpNet::request(String& uri, String &payload, String &response, HTTPCl
           MYSECSWITCH_INFOF(F("HttpNet request Response=%s\n"), response.c_str());
           wc_http.end();
           _mysecDeviceState.numHttpErrors = 0;
+          _mysecDeviceState.lastHttpError = 200;
           return 0; // 0 ok
         }
         MYSECSWITCH_ERRORF(F("HttpNet request Erro de assinatura Response=%s respToken=%s gen respToken=%s\n"), response.c_str(), respToken.c_str(), respToken2.c_str());
@@ -88,6 +89,7 @@ int MysecHttpNet::request(String& uri, String &payload, String &response, HTTPCl
         result = -999; // assinatura inválida
       }
     }
+    _mysecDeviceState.lastHttpError = result;
     _mysecDeviceState.numHttpErrors++;
     MYSECSWITCH_ERRORF(F("HttpNet request Retornou erro do servidor %d %d\n"), result, _mysecDeviceState.numHttpErrors);
     if (result != 429) {

@@ -25,6 +25,7 @@ public:
   MysecParser* mysecParser;
   String pb2;
   uint64_t timeoffset = 0;
+  uint64_t timeoffsetSyncOk = 0;
   uint32_t lasttimeMillis = 0;
   uint32_t lastSynch = 0;
   uint32_t lastSynchOk = 0;
@@ -46,6 +47,7 @@ public:
   int8_t tempoDesligado[DEF_NUMPINS]; // zero indica que não é intermitente -- em minutos
   // 0-nextValueset, 1-output, 2-digital, 3-automatic
   uint8_t pinFlags[DEF_NUMPINS];
+  int lastHttpError = 0;
   uint8_t flags = 0;
   uint8_t numPins = 0;
   uint8_t numHttpErrors = 0;

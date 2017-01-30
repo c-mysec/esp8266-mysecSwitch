@@ -88,6 +88,7 @@ bool MysecParser::decodeResponseNewKeyTime(JsonObject& rdata, uint32_t m) {
     String t = rdata[FPSTR(PM_TIME)];
     MYSECSWITCH_DEBUGF(F("Parser decodeResponseNewKey time=%s\n"), t.c_str());
     _mysecDeviceState.timeoffset = MysecUtil::atoull(t);
+    _mysecDeviceState.timeoffsetSyncOk = _mysecDeviceState.timeoffset;
     _mysecDeviceState.lasttimeMillis = millis(); // guarda o offset de millis
   }
   if (!rdata.containsKey(JFS(PM_S))) {
