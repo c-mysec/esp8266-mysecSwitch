@@ -9,14 +9,16 @@
  *      Author: user2
  */
 
-#include "MysecWebsocketNet.h"
-#include <ArduinoJson.h>
+#include <depend/MysecDeviceState.h>
+#include <depend/MysecParser.h>
+#include <depend/MysecUtil.h>
+#include <depend/MysecWebsocketNet.h>
+#include <stddef.h>
+#include <WebSockets.h>
 #include <WebSocketsClient.h>
-#include "MysecDeviceState.h"
-#include "MysecUtil.h"
-#include "MysecParser.h"
-#include "MysecHttpNet.h"
-#include "MysecUdpNet.h"
+#include <WString.h>
+#include <cstdint>
+
 WebSocketsClient webSocket;
 void webSocketEvent(WStype_t type, uint8_t * payload, size_t lenght);
 
@@ -34,10 +36,10 @@ MysecWebsocketNet::~MysecWebsocketNet() {
 bool MysecWebsocketNet::connect(bool wssecure, const char* wshost, int wsport, const char* wsuri) {
   resp.remove(0);
   if (wssecure) {
-    MYSECSWITCH_DEBUGF(F("WebsocketNet connect Iniciando websocket: wss://%s:%d%s\n"), wshost, wsport, wsuri);
+    MYSECSWITCH_INFOF(F("WebsocketNet connect Iniciando websocket: wss://%s:%d%s\n"), wshost, wsport, wsuri);
     webSocket.beginSSL(wshost, wsport, wsuri);
   } else {
-    MYSECSWITCH_DEBUGF(F("WebsocketNet connect Iniciando websocket: ws://%s:%d%s\n"), wshost, wsport, wsuri);
+    MYSECSWITCH_INFOF(F("WebsocketNet connect Iniciando websocket: ws://%s:%d%s\n"), wshost, wsport, wsuri);
     webSocket.begin(wshost, wsport, wsuri);
   }
   webSocket.onEvent(webSocketEvent);
@@ -59,13 +61,13 @@ void MysecWebsocketNet::loop() {
     String response = resp.substring(pos2 + 1); // pula ':'
     resp.remove(0);
     String respToken2 = MysecUtil::makeToken(response.c_str(), _mysecDeviceState.passkey2);
-    MYSECSWITCH_DEBUGF(F("WebsocketNet loop Response=%s, respToken=%s, gen respToke=%s\n"), response.c_str(), respToken.c_str(), respToken2.c_str());
     if (respToken == respToken2) {
+      MYSECSWITCH_DEBUGF(F("WebsocketNet loop Response=%s\n"), response.c_str());
       bool r = _mysecDeviceState.mysecParser->decodeResponse(msgid, response, 1);
       MYSECSWITCH_DEBUGF(F("WebsocketNet loop retorno decode=%d\n"), r);
       _mysecDeviceState.lastSynch = 1;
     } else {
-      MYSECSWITCH_ERRORLN(F("WebsocketNet loop invalid token. Is Passkey synchronized?"));
+      MYSECSWITCH_DEBUGF(F("WebsocketNet loop Response=%s, respToken=%s, gen respToke=%s\n"), response.c_str(), respToken.c_str(), respToken2.c_str());
     }
   }
 }
@@ -79,7 +81,7 @@ void MysecWebsocketNet::send(const __FlashStringHelper *msgid, String& payload) 
     p.concat(MysecUtil::makeToken(payload.c_str(), _mysecDeviceState.passkey2));
     p.concat(':');
     p.concat(payload);
-    MYSECSWITCH_DEBUGF(F("WebsocketNet send Enviando: %s\n"), p.c_str());
+    MYSECSWITCH_INFOF(F("WebsocketNet send Enviando: %s\n"), p.c_str());
     if (webSocket.sendTXT(p)) {
       _mysecDeviceState.setNextSynch();
     }
@@ -104,7 +106,7 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t lenght) {
     }
   break;
   case WStype_TEXT: {
-    MYSECSWITCH_DEBUGF(F("WebsocketNet webSocketEvent get text: %s\n"), payload);
+    MYSECSWITCH_INFOF(F("WebsocketNet webSocketEvent get text: %s\n"), payload);
     _mysecWebsocketNet.resp.remove(0);
     _mysecWebsocketNet.resp.concat((const char *)payload);
   }

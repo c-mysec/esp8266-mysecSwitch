@@ -184,7 +184,7 @@ bool MysecDeviceState::resetValue(uint8_t pin, double value) {
   }
 }
 void MysecDeviceState::applyNext(uint8_t index) {
-#if MYSECSWITCH_DEBUG>1
+#if MYSECSWITCH_DEBUG>2
   String p; p.reserve(50);
   p.concat(FPSTR("DeviceState ApplyNext Novo valor "));
   p.concat(pinNextValue[index]);
@@ -216,7 +216,7 @@ void MysecDeviceState::applyNext(uint8_t index) {
   }
   if (getAutomatic(index)) {
     // se for automático, aplicamos o valor no pino.
-#if MYSECSWITCH_DEBUG>1
+#if MYSECSWITCH_DEBUG>2
   String p; p.reserve(50);
   p.concat(FPSTR("DeviceState ApplyNext Aplicando valor "));
   p.concat(pinNextValue[index]);

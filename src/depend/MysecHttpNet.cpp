@@ -30,7 +30,6 @@ bool MysecHttpNet::getTime(HTTPClient &wc_http) {
     MYSECSWITCH_DEBUGF(("HttpNet getTime=%s\n"), _mysecDeviceState.url.c_str());
     if (wc_http.begin(_mysecDeviceState.url + F("/rest/time"))) {
       int result = wc_http.GET();
-      MYSECSWITCH_DEBUGF(F("HttpNet getTime result=%d\n"), result);
       _mysecDeviceState.lasttimeMillis = millis(); // guarda o offset de millis
       if (result >= 0) {
         // valida retorno
@@ -41,6 +40,7 @@ bool MysecHttpNet::getTime(HTTPClient &wc_http) {
         //como millis() é 32 bits, como saber quando tiver overflow?
         _mysecDeviceState.timeoffset = MysecUtil::atoull(resp);
       } else {
+        MYSECSWITCH_ERRORF(F("HttpNet getTime result=%d\n"), result);
         _mysecDeviceState.numHttpErrors++;
         wc_http.end();
         return false;
@@ -59,11 +59,10 @@ int MysecHttpNet::request(String& uri, String &payload, String &response, HTTPCl
       auth.concat(F("Bearer "));
       auth.concat(token);
       wc_http.addHeader(F("Authorization"), auth);
-      MYSECSWITCH_DEBUGF(F("HttpNet request url=%s, uri=%s, reqToken=%s\n"), _mysecDeviceState.url.c_str(), uri.c_str(), token.c_str());
+      MYSECSWITCH_INFOF(F("HttpNet request url=%s, uri=%s, reqToken=%s, payload=%s\n"), _mysecDeviceState.url.c_str(), uri.c_str(), token.c_str(), payload.c_str());
       wc_http.addHeader(F("Content-Type"), F("application/json"));
       wc_http.addHeader(F("Accept"), F("application/json"));
       wc_http.addHeader(F("device"), MysecUtil::ulltoa(_mysecDeviceState.id));
-      MYSECSWITCH_DEBUGF(F("HttpNet request Payload=%s\n"), payload.c_str());
       wc_http.collectHeaders(headerKeys, 1);
       result = wc_http.POST((uint8_t*)payload.c_str(), payload.length());
     }
@@ -78,20 +77,19 @@ int MysecHttpNet::request(String& uri, String &payload, String &response, HTTPCl
       _mysecDeviceState.setNextSynch();
       if (result == 200) {
         String respToken2 = MysecUtil::makeToken(response.c_str(), _mysecDeviceState.passkey2);
-        MYSECSWITCH_DEBUGF(F("HttpNet request Response=%s\n"), response.c_str());
-        MYSECSWITCH_DEBUGF(F("HttpNet request respToken=%s\n"), respToken.c_str());
-        MYSECSWITCH_DEBUGF(F("HttpNet request gen respToken=%s\n"), respToken2.c_str());
         if (respToken == respToken2) {
+          MYSECSWITCH_INFOF(F("HttpNet request Response=%s\n"), response.c_str());
           wc_http.end();
           _mysecDeviceState.numHttpErrors = 0;
           return 0; // 0 ok
         }
+        MYSECSWITCH_ERRORF(F("HttpNet request Erro de assinatura Response=%s respToken=%s gen respToken=%s\n"), response.c_str(), respToken.c_str(), respToken2.c_str());
         _mysecDeviceState.numHttpErrors++;
         result = -999; // assinatura inválida
       }
     }
     _mysecDeviceState.numHttpErrors++;
-    MYSECSWITCH_DEBUGF(F("HttpNet request Retornou erro do servidor %d %d\n"), result, _mysecDeviceState.numHttpErrors);
+    MYSECSWITCH_ERRORF(F("HttpNet request Retornou erro do servidor %d %d\n"), result, _mysecDeviceState.numHttpErrors);
     if (result != 429) {
       // ignora quando o erro for TooManyRequests
       _mysecDeviceState.timeoffset = 0; // será necessário obter novamente o timestamp

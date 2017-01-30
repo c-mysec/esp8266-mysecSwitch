@@ -142,4 +142,5 @@ const char PM_TAG1[] PROGMEM = {"tag1"};
 const char PM_TAG2[] PROGMEM = {"tag2"};
 
 const char MYSECSWITCH_PM_DEBUG[] PROGMEM = {"DEBUG:MySec "};
+const char MYSECSWITCH_PM_INFO[] PROGMEM = {"INFO:MySec "};
 const char MYSECSWITCH_PM_ERROR[] PROGMEM = {"ERROR:MySec "};

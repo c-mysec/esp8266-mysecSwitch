@@ -40,7 +40,7 @@ String MysecUdpNet::receive(const uint8_t * passkey, uint64_t deviceId) {
 	  MYSECSWITCH_DEBUGF(F("UdpNet receive cb:%d\n"), cb);
     uint8_t * buffer = new uint8_t[cb];
     udpClient.readBytes(buffer, cb);
-#if MYSECSWITCH_DEBUG>1
+#if MYSECSWITCH_DEBUG>2
     String tPrint; tPrint.reserve(44);
 #endif
     uint16_t siz = readInt(buffer);
@@ -71,7 +71,7 @@ String MysecUdpNet::receive(const uint8_t * passkey, uint64_t deviceId) {
       Sha256.write((uint8_t)((origem) & 0xFF));
       Sha256.write((uint8_t)((origem >> 8) & 0xFF));
       if (siz > 0) {
-#if MYSECSWITCH_DEBUG>1
+#if MYSECSWITCH_DEBUG>2
         tPrint.remove(0);
         BU64::encode(tPrint, buffer + 48, siz);
         MYSECSWITCH_DEBUGF(F("UdpNet receive buffer:%s\n"), tPrint.c_str());
@@ -83,7 +83,7 @@ String MysecUdpNet::receive(const uint8_t * passkey, uint64_t deviceId) {
         Sha256.write((buffer + 48), siz);
       }
       uint8_t * hash2 = Sha256.resultHmac();
-#if MYSECSWITCH_DEBUG>1
+#if MYSECSWITCH_DEBUG>2
       tPrint.remove(0);
       BU64::encode(tPrint, hash, 32);
       MYSECSWITCH_DEBUGF(F("UdpNet receive siz:%d val:%d destino:%d origem:%d rechash:%s\n"), siz, val, destino, origem, tPrint.c_str());
@@ -167,7 +167,6 @@ String MysecUdpNet::receive(const uint8_t * passkey, uint64_t deviceId) {
 	        BU64::decode(pb2, des1.c_str(), 44);
 	      }
 	    }
-	    MYSECSWITCH_ERRORF(F("UdpNet receive parseObject ok fase %d\n"), fase);
 	    if (fase == 1) {
 	      memset(sessionKey, 0, 32);
 	      // valida a mensagem inicial com HMAC da chave do usuario
@@ -195,10 +194,9 @@ String MysecUdpNet::receive(const uint8_t * passkey, uint64_t deviceId) {
 //	      String sendHash; sendHash.reserve(44);
 //	      BU64::encode(sendHash, hash, 32);
 	      String sendHash = MysecUtil::makeToken(sendPayload.c_str(), passkey);
-	      MYSECSWITCH_DEBUGF(F("UdpNet receive enviando resposta para %s:%d : %s\n"), udpClient.remoteIP().toString().c_str(), udpClient.localPort(), sendPayload.c_str());
+	      MYSECSWITCH_DEBUGF(F("UdpNet receive enviando resposta para %s:%d payload %s SendHash:%s\n"), udpClient.remoteIP().toString().c_str(), udpClient.localPort(), sendPayload.c_str(), sendHash.c_str());
 	      remote = udpClient.remoteIP();
 	      udpClient.beginPacket(udpClient.remoteIP(), udpClient.localPort());
-	      MYSECSWITCH_DEBUGF(F("UdpNet receive SendHash:%s, Payload:%s\n"), sendHash.c_str(), sendPayload.c_str());
 	      udpClient.print(sendHash);
 	      udpClient.print(";");
 	      udpClient.print(sendPayload);
@@ -210,7 +208,6 @@ String MysecUdpNet::receive(const uint8_t * passkey, uint64_t deviceId) {
 	        MYSECSWITCH_ERRORLN(F("UdpNet receive Assinatura fase 2 invalida"));
 	        return "";
 	      }
-	      MYSECSWITCH_DEBUGLN(F("UdpNet receive Assinatura fase 2 ok"));
 	      return payload;
 	    } else {
 	      MYSECSWITCH_ERRORLN(F("UdpNet receive mensagem em fase nao reconhecida"));
@@ -221,7 +218,7 @@ String MysecUdpNet::receive(const uint8_t * passkey, uint64_t deviceId) {
 }
 bool MysecUdpNet::makeSharedKey(const uint8_t * passkey) {
 	if (pb2[0] != 0 || pb2[1] != 0 || pb2[2] != 0) {
-#ifdef MYSECSWITCH_DEBUG
+#if MYSECSWITCH_DEBUG>2
     String b; b.reserve(45);
     BU64::encode(b, pb2, 32);
     MYSECSWITCH_DEBUGF(F("UdpNet makeSharedKey pb2 : %s\n"), b.c_str());
@@ -236,7 +233,7 @@ bool MysecUdpNet::makeSharedKey(const uint8_t * passkey) {
 		// já responde usando a sessionkey
 		Curve25519::dh2(sessionKey, f);
 		//curve25519_donna(sessionKey, pk1, pb2);
-#ifdef MYSECSWITCH_DEBUG
+#if MYSECSWITCH_DEBUG>2
 		b.remove(0);
 		BU64::encode(b, sessionKey, 32);
 		MYSECSWITCH_DEBUGF(F("UdpNet makeSharedKey sessionKey : %s\n"), b.c_str());

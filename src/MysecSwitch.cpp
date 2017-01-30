@@ -21,6 +21,9 @@
 #include "depend/MysecParser.h"
 #include "depend/MysecWebsocketNet.h"
 #include "depend/MysecHttpNet.h"
+#include <Crypto.h>
+#include "AES.h"
+#include "CBC.h"
 
 #ifndef MYSECSWITCH_NOFILE
 #include "FS.h"
@@ -146,6 +149,7 @@ void MysecSwitch::persisteChaves() {
   } else {
     // se a chave original não está no arquivo, então a chave atual em uso é a original
     BU64::encode(chaveOriginal, _mysecDeviceState.passkey2, 32);
+    MYSECSWITCH_DEBUGLN(F("Switch persisteChaves Chaves de disponitivo atual e original são a mesma."));
   }
   String passkey;passkey.reserve(44);
   BU64::encode(passkey, _mysecDeviceState.passkey2, 32);
@@ -157,6 +161,9 @@ void MysecSwitch::persisteChaves() {
   passkey.remove(0);
   if (_mysecDeviceState.passkey1[0] != 0 && _mysecDeviceState.passkey1[1] != 0 && _mysecDeviceState.passkey1[2] != 0) {
     BU64::encode(passkey, _mysecDeviceState.passkey1, 32);
+    MYSECSWITCH_DEBUGLN(F("Switch persisteChaves Chaves de dispositivo e usuário persistidas."));
+  } else {
+    MYSECSWITCH_DEBUGLN(F("Switch persisteChaves Chaves de dispositivo persistidas (não tem chave de usuário)."));
   }
   f2.print(passkey);
   f2.print('\n');
@@ -167,16 +174,14 @@ void MysecSwitch::persisteChaves() {
 bool MysecSwitch::processaChaveNova() {
   // se temos chave nova então processamos
   if (_mysecDeviceState.pb2.length() == 44) {
-    MYSECSWITCH_DEBUGF(F("Switch processaChaveNova Processando nova chave pb2 %s\n"), _mysecDeviceState.pb2.c_str());
     uint8_t ipb2[32];
     if (BU64::decode(ipb2, _mysecDeviceState.pb2.c_str(), 44) == 32) {
       uint8_t sharedkey[32];
       _mysecDeviceState.pb2.remove(0);
       BU64::encode(_mysecDeviceState.pb2, _mysecDeviceState.nextPb1, 32);
-      MYSECSWITCH_DEBUGF(F("Switch processaChaveNova pb1=%s\n"), _mysecDeviceState.pb2.c_str());
+      MYSECSWITCH_DEBUGLN(F("Switch processaChaveNova"));
       _mysecDeviceState.pb2.remove(0);
       BU64::encode(_mysecDeviceState.pb2, _mysecDeviceState.nextPk1, 32);
-      MYSECSWITCH_DEBUGLN(F("Switch processaChaveNova pk1"));
       delay(0);
       Curve25519::dh2(ipb2, _mysecDeviceState.nextPk1);
       memcpy(sharedkey, ipb2, 32);
@@ -202,7 +207,6 @@ bool MysecSwitch::processaChaveNova() {
       && _mysecDeviceState.nextPb1[0] == 0 && _mysecDeviceState.nextPb1[1] == 0
       && _mysecDeviceState.nextPb1[2] == 0) {
     // se a chave foi trocada então calculamos uma nova
-    MYSECSWITCH_DEBUGLN(F("Switch processaChaveNova Criando novas chaves"));
     Curve25519::dh1(_mysecDeviceState.nextPb1, _mysecDeviceState.nextPk1);
     MYSECSWITCH_DEBUGLN(F("Switch processaChaveNova Novas chaves criadas"));
     return true;
@@ -315,7 +319,6 @@ void MysecSwitch::loop() {
           (_mysecDeviceState.lastSynchOk <= 1 || _mysecDeviceState.lastSynchOk < millis() || _mysecDeviceState.state == MysecDeviceState::STATE_HASDATA) &&
             _mysecDeviceState.connType == MysecDeviceState::TYPE_HTTP)) {
         // http
-        MYSECSWITCH_DEBUGF(F("Switch loop url=%s\n"), _mysecDeviceState.url.c_str());
         HTTPClient wc_http;
         wc_http.setTimeout(10000);// milissegundos
         if (_mysecHttpNet.getTime(wc_http)) {
@@ -341,6 +344,8 @@ void MysecSwitch::loop() {
     _mysecWebsocketNet.loop();
   }
 }
+CBC<AES256> cipher;
+
 void MysecSwitch::conectaServidorCentral() {
   _mysecDeviceState.flags &= 0xFE;
   for (int i = 0; i < DEF_NUMPINS; i++) {
@@ -365,6 +370,7 @@ void MysecSwitch::conectaServidorCentral() {
       bool resultado = _mysecHttpNet.request(uriUrlRequest, payload, response, wc_http) == 0;
       _mysecDeviceState.lastSynchOk = 0;
       if (resultado) {
+        MYSECSWITCH_DEBUGF(F("Switch connectaServidorCentral Response: %s\n"), response.c_str());
         StaticJsonBuffer<1000> jsonBuffer;
         JsonObject& rdata = jsonBuffer.parseObject(response);
         if (!rdata.success()) {
@@ -376,7 +382,7 @@ void MysecSwitch::conectaServidorCentral() {
           return; // continua no estado 0 e tenta novamente mais tarde
         }
         if (_mysecDeviceState.pb2.length() == 44) {
-          MYSECSWITCH_ERRORLN(F("Switch connectaServidorCentral UrlRequest Regerar chaves a pedido do servidor"));
+          MYSECSWITCH_INFOLN(F("Switch connectaServidorCentral UrlRequest Regerar chaves a pedido do servidor"));
           return;
         }
         String wshost = rdata[F("host")];
@@ -385,11 +391,22 @@ void MysecSwitch::conectaServidorCentral() {
         String wsauth = rdata[F("token")];
         String wsuri; wsuri.reserve(200);
         String uri = rdata[F("uri")];
-        String p1 = rdata[F("p1")];
-        if (p1 && p1.length() >= 44) {
+        String p1 = rdata[F("pp")];
+        String ivs = rdata[F("bb")];
+        if (p1 && p1.length() >= 44 && ivs && ivs.length() == 24) {
           BU64::decode(_mysecDeviceState.passkey1, p1.c_str(), 44);
+          uint8_t iv[16];
+          BU64::decode(iv, ivs.c_str(), 24);
+          cipher.clear();
+          cipher.setKey(_mysecDeviceState.passkey2, cipher.keySize());
+          cipher.setIV(iv, cipher.ivSize());
+          cipher.decrypt(_mysecDeviceState.passkey1, _mysecDeviceState.passkey1, 32);
+//          response.remove(0);
+//          BU64::encode(response, _mysecDeviceState.passkey1, 32);
+//          MYSECSWITCH_DEBUGF(F("Switch connectaServidorCentral key: %s"), response.c_str());
+
           persisteChaves();
-          MYSECSWITCH_DEBUGLN(F("Trocando chaves de usuário. Restart."));
+          MYSECSWITCH_INFOLN(F("Trocando chaves de usuário. Restart."));
           delay(1000);
           ESP.restart();
         }
@@ -420,7 +437,7 @@ void MysecSwitch::conectaServidorCentral() {
           _mysecDeviceState.connType = MysecDeviceState::TYPE_WEBSOCKET;
         } else {
           // ficamos com HTTP --> só vai mudar se der reset.
-          MYSECSWITCH_DEBUGLN(F("Switch connectaServidorCentral Ficamos com HTTP\n"));
+          MYSECSWITCH_INFOLN(F("Switch connectaServidorCentral Ficamos com HTTP\n"));
           _mysecDeviceState.state = MysecDeviceState::STATE_IDLE;
           _mysecDeviceState.connType = MysecDeviceState::TYPE_HTTP;
         }
