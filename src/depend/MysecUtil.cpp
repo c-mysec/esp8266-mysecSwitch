@@ -65,10 +65,17 @@ bool MysecUtil::validateToken(const char* payload, const char* receivedToken, co
 }
 
 
-String MysecUtil::formatTime(uint64_t temp) {
+String MysecUtil::formatTime(uint64_t temp, long timezone, bool daylight) {
   uint8_t monthDays[] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
 
   unsigned int mil = temp % 1000ull; temp /= 1000;
+
+  if (daylight) // Sommerzeit beachten
+    temp = temp + (timezone * 360) + 3600;
+  else {
+    temp = temp + (timezone * 360);
+  }
+
   unsigned int s = temp % 60; temp /= 60;
   unsigned int m = temp % 60; temp /= 60;
   unsigned int h = temp % 24;

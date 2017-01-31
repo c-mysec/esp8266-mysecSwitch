@@ -115,11 +115,11 @@ void MysecSwitch::init(const char * centralServerURL, uint64_t id, int port, boo
   MYSECSWITCH_INFOLN(F("Switch init Gerenciamento externo de chaves"));
 #endif
 };
-String MysecSwitch::getLastSynchTime() {
-  return MysecUtil::formatTime(_mysecDeviceState.timeoffset);
+uint64_t MysecSwitch::getLastSynchTime() {
+  return _mysecDeviceState.timeoffset;
 }
-String MysecSwitch::getLastSynchTimeOk() {
-  return MysecUtil::formatTime(_mysecDeviceState.timeoffsetSyncOk);
+uint64_t MysecSwitch::getLastSynchTimeOk() {
+  return _mysecDeviceState.timeoffsetSyncOk;
 }
 int MysecSwitch::getLastHttpError() {
   return _mysecDeviceState.lastHttpError;

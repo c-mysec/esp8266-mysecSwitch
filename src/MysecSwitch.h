@@ -33,11 +33,11 @@ public:
   /**
    * Retorna o millis da última vez que conseguiu conectar com sucesso com o servidor
    */
-  String getLastSynchTime();
+  uint64_t getLastSynchTime();
   /**
    * Retorna o millis da última vez que conseguiu conectar com sucesso com o servidor e conseguiu sincronizar dados
    */
-  String getLastSynchTimeOk();
+  uint64_t getLastSynchTimeOk();
   /**
    * Insere uma nova configuração para um pino. Deve ser executado uma única vez para cada pino.
    * Parâmetro Automatico quando TRUE indica que o pino será gerenciado pela API. Assim, no caso de
