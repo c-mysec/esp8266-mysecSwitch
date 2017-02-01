@@ -71,7 +71,7 @@ void MysecSwitch::init(const char * centralServerURL, uint64_t id, int port, boo
       MYSECSWITCH_INFOLN(F("Switch init chave corrente recuperada"));
       if (declen == 32) {
         // se a chave antiga gravada é a mesma que está no código, então usa a chave nova gravada
-        // a comparação com achave antiga gravada é para previnir a regeração de chave manual.
+        // a comparação com a chave antiga gravada é para previnir a regeração de chave manual.
         if (memcmp(old, _mysecDeviceState.passkey2, 32) == 0) {
           declen = BU64::decode(current, c.c_str(), 44);
           if (declen == 32) {
@@ -97,6 +97,8 @@ void MysecSwitch::init(const char * centralServerURL, uint64_t id, int port, boo
             SPIFFS.end();
             return;
           }
+        } else {
+          MYSECSWITCH_INFOLN(F("Substituição de passkey2 do dispositivo"));
         }
       }
     }
