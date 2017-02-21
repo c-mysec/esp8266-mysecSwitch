@@ -16,6 +16,8 @@
 #include "MysecUtil.h"
 #define LEAP_YEAR(Y) ( ((1970+Y)>0) && !((1970+Y)%4) && ( ((1970+Y)%100) || !((1970+Y)%400) ) )
 
+int __mysec_debug_mode = 3;
+
 String MysecUtil::ulltoa(uint64_t ll) {
   String a; a.reserve(20);
   uint64_t tid = ll;

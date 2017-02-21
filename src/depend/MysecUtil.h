@@ -17,25 +17,27 @@
 #endif
 
 extern const char MYSECSWITCH_PM_DEBUG[] PROGMEM;
+extern const char MYSECSWITCH_PM_INFO[] PROGMEM;
 extern const char MYSECSWITCH_PM_ERROR[] PROGMEM;
+extern int __mysec_debug_mode;
 
 #if MYSECSWITCH_DEBUG>2
-  #define MYSECSWITCH_DEBUGLN(buff) Serial.print(FPSTR(MYSECSWITCH_PM_DEBUG));Serial.println(buff);
-  #define MYSECSWITCH_DEBUGF(fmt,...) Serial.print(FPSTR(MYSECSWITCH_PM_DEBUG));Serial.printf(String(fmt).c_str(), __VA_ARGS__ )
+  #define MYSECSWITCH_DEBUGLN(buff) if (__mysec_debug_mode>2) {Serial.print(FPSTR(MYSECSWITCH_PM_DEBUG));Serial.println(buff);}
+  #define MYSECSWITCH_DEBUGF(fmt,...) if (__mysec_debug_mode>2) {Serial.print(FPSTR(MYSECSWITCH_PM_DEBUG));Serial.printf(String(fmt).c_str(), __VA_ARGS__ );}
 #else
   #define MYSECSWITCH_DEBUGLN(buff)
   #define MYSECSWITCH_DEBUGF(fmt,...)
 #endif
 #if MYSECSWITCH_DEBUG>1
-  #define MYSECSWITCH_INFOLN(buff) Serial.print(FPSTR(MYSECSWITCH_PM_DEBUG));Serial.println(buff);
-  #define MYSECSWITCH_INFOF(fmt,...) Serial.print(FPSTR(MYSECSWITCH_PM_DEBUG));Serial.printf(String(fmt).c_str(), __VA_ARGS__ )
+  #define MYSECSWITCH_INFOLN(buff) if (__mysec_debug_mode>1) {Serial.print(FPSTR(MYSECSWITCH_PM_INFO));Serial.println(buff);}
+  #define MYSECSWITCH_INFOF(fmt,...) if (__mysec_debug_mode>1) {Serial.print(FPSTR(MYSECSWITCH_PM_INFO));Serial.printf(String(fmt).c_str(), __VA_ARGS__ );}
 #else
   #define MYSECSWITCH_INFOLN(buff)
   #define MYSECSWITCH_INFOF(fmt,...)
 #endif
 #if MYSECSWITCH_DEBUG>0
-  #define MYSECSWITCH_ERRORLN(buff) Serial.print(FPSTR(MYSECSWITCH_PM_ERROR));Serial.println(buff);
-  #define MYSECSWITCH_ERRORF(fmt,...) Serial.print(FPSTR(MYSECSWITCH_PM_ERROR));Serial.printf(String(fmt).c_str(), __VA_ARGS__ )
+  #define MYSECSWITCH_ERRORLN(buff) if (__mysec_debug_mode>0) {Serial.print(FPSTR(MYSECSWITCH_PM_ERROR));Serial.println(buff);}
+  #define MYSECSWITCH_ERRORF(fmt,...) if (__mysec_debug_mode>0) {Serial.print(FPSTR(MYSECSWITCH_PM_ERROR));Serial.printf(String(fmt).c_str(), __VA_ARGS__ );}
 #else
   #define MYSECSWITCH_ERRORLN(buff)
   #define MYSECSWITCH_ERRORF(fmt,...)
