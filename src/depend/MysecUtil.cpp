@@ -68,6 +68,9 @@ bool MysecUtil::validateToken(const char* payload, const char* receivedToken, co
 
 
 String MysecUtil::formatTime(uint64_t temp, long timezone, bool daylight) {
+  if (temp == 0) {
+    return "";
+  }
   uint8_t monthDays[] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
 
   unsigned int mil = temp % 1000ull; temp /= 1000;
