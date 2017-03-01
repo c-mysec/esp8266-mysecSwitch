@@ -45,6 +45,22 @@ String MysecParser::makePayload(uint32_t m, int fase, bool sendNextPb1) {
   root.printTo(buffer);
   return buffer;
 }
+String MysecParser::makePayloadH() {
+  StaticJsonBuffer<1000> jsonBuffer;
+  JsonObject& root = jsonBuffer.createObject();
+  root[F("id")] = MysecUtil::ulltoa(_mysecDeviceState.id);
+  int32_t elapsed = (millis() - _mysecDeviceState.lasttimeMillis);
+  root[FPSTR(PM_TIME)] = MysecUtil::ulltoa(_mysecDeviceState.timeoffset + elapsed);
+  root[FPSTR(PM_FASE)] = 3;
+  root[FPSTR(PM_TAG1)] = _mysecDeviceState.tag1;
+  root[FPSTR(PM_TAG2)] = _mysecDeviceState.tag2;
+  root[FPSTR(PM_DESAFIO1)] = random(10,20000);
+  root[FPSTR(PM_DESAFIO2)] = random(55,50000);
+  root[FPSTR(PM_S)] = millis();
+  String buffer; buffer.reserve(root.measureLength() + 1);
+  root.printTo(buffer);
+  return buffer;
+}
 String MysecParser::makeUrlRequest(uint32_t m) {
   StaticJsonBuffer<1000> jsonBuffer;
   JsonObject& root = jsonBuffer.createObject();

@@ -11,8 +11,10 @@
 
 #include "sha256.h"
 #include "BU64.h"
+#include <ESP8266WiFi.h>
 #include <Curve25519.h>
 #include <ArduinoJson.h>
+#include "depend/MysecDeviceState.h"
 #include "MysecUtil.h"
 #include "MysecUdpNet.h"
 
@@ -160,9 +162,9 @@ String MysecUdpNet::receive(const uint8_t * passkey, uint64_t deviceId) {
 	        MYSECSWITCH_ERRORF(F("UdpNet receive parseObject() failed %s\n"), payload.c_str());
 	        return "";
 	      }
-	      fase = data["fase"];
-	      String des1 = data["desafio1"];
-	      des2 = data["desafio2"];
+	      fase = data[FPSTR(PM_FASE)];
+	      String des1 = data[FPSTR(PM_DESAFIO1)];
+	      des2 = data[FPSTR(PM_DESAFIO2)];
 	      if (fase == 1) {
 	        BU64::decode(pb2, des1.c_str(), 44);
 	      }
@@ -179,10 +181,10 @@ String MysecUdpNet::receive(const uint8_t * passkey, uint64_t deviceId) {
 	      StaticJsonBuffer<1000> jsonBuffer;
 	      JsonObject& root = jsonBuffer.createObject();
 	      // retorna o ok
-	      root["fase"] = 1;
-	      root["desafio1"] = des2;
-	      root["desafio3"] = random(10,10000);
-	      root["desafio4"] = MysecUtil::ulltoa(deviceId);
+	      root[FPSTR(PM_FASE)] = 1;
+	      root[FPSTR(PM_DESAFIO1)] = des2;
+	      root[FPSTR(PM_DESAFIO3)] = random(10,10000);
+	      root[FPSTR(PM_DESAFIO4)] = MysecUtil::ulltoa(deviceId);
 	      root["s"] = millis();
 	      String sendPayload;
 	      sendPayload.reserve(root.measureLength()+1);
@@ -209,12 +211,32 @@ String MysecUdpNet::receive(const uint8_t * passkey, uint64_t deviceId) {
 	        return "";
 	      }
 	      return payload;
-	    } else {
-	      MYSECSWITCH_ERRORLN(F("UdpNet receive mensagem em fase nao reconhecida"));
+	    } else if (fase == 3) {
+        if (!MysecUtil::validateToken(payload.c_str(), s.c_str(), passkey)) {
+          MYSECSWITCH_ERRORF(F("UdpNet receive Falhou o hash da mensagem payload:%s token:%s gentoken:%s\n"), payload.c_str(), s.c_str(), MysecUtil::makeToken(payload.c_str(), passkey).c_str());
+          return "";
+        }
+	      IPAddress ip = udpClient.remoteIP();
+	      int i = 0;
+	      for (; i < 32; i++) {
+	        if (ip == others[i] || ((uint32_t)others[i]) == 0) {
+	          break;
+	        }
+	      }
+	      // se passou de 31 não tem espaço, se parou onde não era 0, netão o IP já tem
+	      if (i < 32 && ((uint32_t)others[i]) == 0) {
+	        MYSECSWITCH_DEBUGF(F("UdpNet adicionado %d ip %s\n"), i, ip.toString().c_str());
+	        others[i] = ip;
+	      }
+      } else {
+        MYSECSWITCH_ERRORLN(F("UdpNet receive mensagem em fase nao reconhecida"));
 	    }
 		}
 	}
 	return "";
+}
+IPAddress MysecUdpNet::getOther(int i) {
+  return others[i];
 }
 bool MysecUdpNet::makeSharedKey(const uint8_t * passkey) {
 	if (pb2[0] != 0 || pb2[1] != 0 || pb2[2] != 0) {
@@ -243,6 +265,16 @@ bool MysecUdpNet::makeSharedKey(const uint8_t * passkey) {
 	} else {
 		return false;
 	}
+}
+void MysecUdpNet::sendH(String& payload) {
+  if (_mysecDeviceState.passkey1 && _mysecDeviceState.passkey1[0] != 0 && _mysecDeviceState.passkey1[1] != 0 && _mysecDeviceState.passkey1[2] != 0) {
+    udpClient.beginPacket(~WiFi.subnetMask() | WiFi.gatewayIP(), udpClient.localPort());
+    MYSECSWITCH_INFOF(F("UdpNet sendH %d : %s\n"), (~WiFi.subnetMask() | WiFi.gatewayIP()), payload.c_str());
+    udpClient.print(MysecUtil::makeToken(payload.c_str(), _mysecDeviceState.passkey1));
+    udpClient.write(';');
+    udpClient.print(payload);
+    udpClient.endPacket();
+  }
 }
 void MysecUdpNet::send(String& payload) {
   if (sessionKey[0] != 0 || sessionKey[1] != 0 || sessionKey[2] != 0) {

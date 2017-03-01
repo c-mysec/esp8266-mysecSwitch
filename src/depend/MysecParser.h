@@ -18,6 +18,7 @@ public:
   MysecParser() {}
   virtual ~MysecParser() {}
   virtual String makePayload(uint32_t m, int fase, bool sendNextPb1);
+  virtual String makePayloadH();
   String makeUrlRequest(uint32_t m);
   bool decodeResponseNewKeyTime(JsonObject& rdata, uint32_t m);
   virtual bool decodeResponse(const String& msgid, const String &resp, uint32_t m);

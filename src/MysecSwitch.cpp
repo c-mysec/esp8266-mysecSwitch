@@ -239,7 +239,7 @@ void MysecSwitch::processaUdp() {
       }
     } else {
       // desabilita a programacao se: estamos no intervalo de fired
-      if (_mysecUdpNet.isConfigured() && _mysecUdpNet.isAlarmFired()) {
+      if (_mysecUdpNet.isAlarmFired()) {
         bool acende = true;
         if (_mysecUdpNet.isEventExpired()) {
           // saímos do estado fired e desligamos tudo.
@@ -283,7 +283,7 @@ void MysecSwitch::loop() {
   for (int index = 0; index < _mysecDeviceState.numPins; index++) {
     // hab == 0 ==> respeita programacao. hab == -1 ==> desbilitado. hab < -1 ==> fired. hab > 0 temp desab
     if (
-        _mysecDeviceState.getOutput(index) && ((_mysecDeviceState.getNextValueSet(index) && _mysecDeviceState.when[index] < millis()))) {
+        _mysecDeviceState.getOutput(index) && ((_mysecDeviceState.getNextValueSet(index) && ((long)(millis() - _mysecDeviceState.when[index]) >= 0)))) {
       // se temos uma programação expirada, atualizamos o valor
       _mysecDeviceState.applyNext(index);
     }
@@ -298,9 +298,15 @@ void MysecSwitch::loop() {
       _mysecDeviceState.lastSynch += 300000; // para por 5 minutos caso de muitos erros seguidos
       _mysecDeviceState.numHttpErrors = 0;
     }
+    if (((long)(millis() - (_mysecDeviceState.lastSynch + 29990))) >= 0 || _mysecDeviceState.lastSynch == 0) {
+      if (_mysecUdpNet.isConfigured()) {
+        String payload = _mysecDeviceState.mysecParser->makePayloadH();
+        _mysecUdpNet.sendH(payload);
+      }
+    }
     if (_mysecDeviceState.state == MysecDeviceState::STATE_DISCONNECTED) {
       conectaServidorCentral();
-    } else if (_mysecDeviceState.lastSynch + (30 * 1000) < millis()) {
+    } else if (((long)(millis() - (_mysecDeviceState.lastSynch + 30000))) >= 0 || _mysecDeviceState.lastSynch == 0) {
       MYSECSWITCH_DEBUGF(F("Switch loop Verificando sincronização a cada 30 segundos millis=%lu, lastSynch=%lu, lastSynchOk=%lu, connType=%d\n"), millis(),
           _mysecDeviceState.lastSynch, _mysecDeviceState.lastSynchOk, _mysecDeviceState.connType);
       // a cada 30 segundos
@@ -308,8 +314,10 @@ void MysecSwitch::loop() {
       _mysecDeviceState.updateValues();
       _mysecDeviceState.lastSynch = millis();
       if (// a cada 5 minutos manda uma mensagem de qualquer forma, o servidor vai filtrar para 1 valor de leitura a cada 30 minutos
-          (_mysecDeviceState.lastSynchOk <= 1 || _mysecDeviceState.lastSynchOk < millis() || _mysecDeviceState.state == MysecDeviceState::STATE_HASDATA) &&
-          _mysecDeviceState.connType == MysecDeviceState::TYPE_WEBSOCKET) {
+          (_mysecDeviceState.lastSynchOk <= 1 ||
+              ((long)(millis() - _mysecDeviceState.lastSynchOk) >= 0) ||
+              _mysecDeviceState.state == MysecDeviceState::STATE_HASDATA) &&
+              _mysecDeviceState.connType == MysecDeviceState::TYPE_WEBSOCKET) {
           // agora pode processar normalmente
           // sincroniza
           {
@@ -324,8 +332,10 @@ void MysecSwitch::loop() {
           _mysecDeviceState.state = MysecDeviceState::STATE_IDLE;
       } else if (( // no caso de HTTP envia a cada 30 minutos
           // o servidor só vai aceitar 1 valor a cada 30 minutos
-          (_mysecDeviceState.lastSynchOk <= 1 || _mysecDeviceState.lastSynchOk < millis() || _mysecDeviceState.state == MysecDeviceState::STATE_HASDATA) &&
-            _mysecDeviceState.connType == MysecDeviceState::TYPE_HTTP)) {
+          (_mysecDeviceState.lastSynchOk <= 1 ||
+              ((long)(millis() - _mysecDeviceState.lastSynchOk) >= 0) ||
+              _mysecDeviceState.state == MysecDeviceState::STATE_HASDATA) &&
+              _mysecDeviceState.connType == MysecDeviceState::TYPE_HTTP)) {
         // http
         HTTPClient wc_http;
         wc_http.setTimeout(10000);// milissegundos
@@ -363,9 +373,10 @@ void MysecSwitch::conectaServidorCentral() {
   }
   if (_mysecDeviceState.url.length() == 0) return;
   // tenta obter primeira conexão somente após 30 segundos
-  if (((millis() > _mysecDeviceState.lastSynch) && ((millis() - _mysecDeviceState.lastSynch) > 29990)) || _mysecDeviceState.lastSynch == 0) {
+  if (((long)(millis() - (_mysecDeviceState.lastSynch + 29990))) >= 0 || _mysecDeviceState.lastSynch == 0) {
     // obtém time
     HTTPClient wc_http;
+    _mysecDeviceState.lastSynch = millis();
     // tenta conectar -- tudo de uma vez para não precisar guardar a URL
     wc_http.setTimeout(10000);// milissegundos
     if (_mysecHttpNet.getTime(wc_http)) {

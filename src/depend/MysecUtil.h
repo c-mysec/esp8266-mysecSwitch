@@ -13,7 +13,7 @@
 #define MYSECUTIL_H_
 
 #ifndef MYSECSWITCH_DEBUG
-#define MYSECSWITCH_DEBUG 2
+#define MYSECSWITCH_DEBUG 3
 #endif
 
 extern const char MYSECSWITCH_PM_DEBUG[] PROGMEM;
@@ -57,6 +57,10 @@ extern const char PM_TEMPOLIGADO[] PROGMEM;
 extern const char PM_TEMPODESLIGADO[] PROGMEM;
 extern const char PM_TAG1[] PROGMEM;
 extern const char PM_TAG2[] PROGMEM;
+extern const char PM_DESAFIO1[] PROGMEM;
+extern const char PM_DESAFIO2[] PROGMEM;
+extern const char PM_DESAFIO3[] PROGMEM;
+extern const char PM_DESAFIO4[] PROGMEM;
 
 class MysecUtil {
 public:

@@ -16,7 +16,7 @@
 #include "MysecUtil.h"
 #define LEAP_YEAR(Y) ( ((1970+Y)>0) && !((1970+Y)%4) && ( ((1970+Y)%100) || !((1970+Y)%400) ) )
 
-int __mysec_debug_mode = 3;
+int __mysec_debug_mode = 2;
 
 String MysecUtil::ulltoa(uint64_t ll) {
   String a; a.reserve(20);
@@ -152,6 +152,10 @@ const char PM_TEMPOLIGADO[] PROGMEM = {"tempoLigado"};
 const char PM_TEMPODESLIGADO[] PROGMEM = {"tempoDesligado"};
 const char PM_TAG1[] PROGMEM = {"tag1"};
 const char PM_TAG2[] PROGMEM = {"tag2"};
+const char PM_DESAFIO1[] PROGMEM = {"desafio1"};
+const char PM_DESAFIO2[] PROGMEM = {"desafio2"};
+const char PM_DESAFIO3[] PROGMEM = {"desafio3"};
+const char PM_DESAFIO4[] PROGMEM = {"desafio4"};
 
 const char MYSECSWITCH_PM_DEBUG[] PROGMEM = {"DEBUG:MySec "};
 const char MYSECSWITCH_PM_INFO[] PROGMEM = {"INFO:MySec "};

@@ -21,6 +21,7 @@ private:
 	IPAddress remote;
 	uint32_t readLong(uint8_t * buffer);
   uint8_t sessionKey[32];
+  IPAddress others[32];
   uint8_t pb2[32];
   long hab = 0; // hab == 0 ==> respeita programacao. hab == -1 ==> desbilitado. hab < -1 ==> fired. hab > 0 temp desab
   // desabilitado significa que nao recebe prog do servidor mas obedec local e manual do servidor.
@@ -34,7 +35,9 @@ public:
 	void init(int port, bool integraAlarmePar);
 	String receive(const uint8_t * passkey, uint64_t deviceId);
 	bool makeSharedKey(const uint8_t * passkey);
-	void send(String& payload);
+	IPAddress getOther(int i);
+  void send(String& payload);
+  void sendH(String& payload);
 	bool isConfigured();
 	bool isDesabilitaAutomatico();
 	bool isAlarmFired();
