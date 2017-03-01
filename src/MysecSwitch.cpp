@@ -29,17 +29,17 @@
 #include "FS.h"
 #endif
 
-void MysecSwitch::init(const char * centralServerURL, uint64_t id, int port, bool integraAlarme, const char * passk2) {
+void MysecSwitch::init(const char * centralServerURL, uint64_t id, int port, const char * passk2) {
   uint8_t pk2[32];
   if (strlen(passk2) == 44) {
     BU64::decode(pk2, passk2, 44);
-    init(centralServerURL, id, port, integraAlarme, pk2);
+    init(centralServerURL, id, port, pk2);
   } else {
     // se não for passado passkey2 não funciona nada
     MYSECSWITCH_ERRORLN(F("Switch init passkey2 é obrigatório"));
   }
 }
-void MysecSwitch::init(const char * centralServerURL, uint64_t id, int port, bool integraAlarme, const uint8_t * passk2) {
+void MysecSwitch::init(const char * centralServerURL, uint64_t id, int port, const uint8_t * passk2) {
   MYSECSWITCH_INFOF(F("Switch init DEF_NUMPINS=%d\n"), DEF_NUMPINS);
   _mysecDeviceState.url = centralServerURL;
   _mysecDeviceState.id = id;
@@ -84,7 +84,7 @@ void MysecSwitch::init(const char * centralServerURL, uint64_t id, int port, boo
                 memcpy(_mysecDeviceState.passkey1, current, 32);
                 MYSECSWITCH_INFOLN(F("Switch init Chave de usuário obtida"));
                 if (port != 0) {
-                  _mysecUdpNet.init(port, integraAlarme);
+                  mysecUdpNet->init(port);
                 }
               } else {
                 MYSECSWITCH_ERRORLN(F("Switch init Chave de usuário inválida"));
@@ -224,56 +224,20 @@ bool MysecSwitch::processaChaveNova() {
 
 void MysecSwitch::processaUdp() {
   // Agora processa UDP.
-  if (_mysecUdpNet.isConfigured() && !_mysecUdpNet.makeSharedKey(_mysecDeviceState.passkey1)) {
+  if (mysecUdpNet->isConfigured() && !mysecUdpNet->makeSharedKey(_mysecDeviceState.passkey1)) {
     // se usamos udpNet e se não estamos fazendo sharedkey nova, sincronizamos UDP
-    String resp = _mysecUdpNet.receive(_mysecDeviceState.passkey1, _mysecDeviceState.id);
+    String resp = mysecUdpNet->receive(_mysecDeviceState.passkey1, _mysecDeviceState.id);
     if (resp.length() > 0) {
       MYSECSWITCH_DEBUGF(F("Switch processaUdp Recebida mensagem: %s\n"), resp.c_str());
       String msgid(F("USYNC"));
-      if (_mysecDeviceState.mysecParser->decodeResponse(msgid, resp, 0)) {
+      if (_mysecDeviceState.mysecParser->decodeResponse(msgid, resp, 0, mysecUdpNet->isDesabilitaAutomatico())) {
         // a resposta é enviada no loop -> decodeResponse setou HAS_DATA
         String p = _mysecDeviceState.mysecParser->makePayload(millis(), 2, false);
         MYSECSWITCH_DEBUGF(F("Switch processaUdp Mensagem decodificada, enviando resposta %s\n"),
             p.c_str());
-        _mysecUdpNet.send(p);
+        mysecUdpNet->send(p);
       }
     } else {
-      // desabilita a programacao se: estamos no intervalo de fired
-      if (_mysecUdpNet.isAlarmFired()) {
-        bool acende = true;
-        if (_mysecUdpNet.isEventExpired()) {
-          // saímos do estado fired e desligamos tudo.
-          _mysecUdpNet.setNextEventHab(1);
-          _mysecUdpNet.setHab(0);
-          acende = false;
-        }
-        if (_mysecUdpNet.getHab() <= -10) {
-          // foi um comando de mudança de estado manual, então apaga as luzes
-          acende = false;
-        }
-        for (int index = 0; index < _mysecDeviceState.numPins; index++) {
-          if (_mysecDeviceState.getDigital(index) && _mysecDeviceState.getOutput(index) && _mysecDeviceState.getAutomatic(index)) {
-            // acende todos os pinos automáticos
-            // estamos em fired ou test fired
-            uint16_t newValue = (uint16_t)(_mysecDeviceState.pinValue[index] + 0.5);
-            digitalWrite(_mysecDeviceState.physicalPin[index], acende | newValue);
-            if (_mysecUdpNet.getHab() == -2) {
-              _mysecUdpNet.setHab(-3);
-              // só mostra na primeira passada.
-              MYSECSWITCH_DEBUGF(F("Switch processaUdp Acende luz %d %d!!!!\n"), index, acende);
-            }
-          }
-        }
-        // foi um comando de mudança de estado manual, então muda do estado temporário atribuido em udpNet para o estado correto
-        if (_mysecUdpNet.getHab() == -10)
-          _mysecUdpNet.setHab(1); // imhome
-
-        if (_mysecUdpNet.getHab() == -11)
-          _mysecUdpNet.setHab(-1); // disabled
-
-        if (_mysecUdpNet.getHab() == -12)
-          _mysecUdpNet.setHab(0); // enabled
-      }
     }
   }
 }
@@ -285,7 +249,7 @@ void MysecSwitch::loop() {
     if (
         _mysecDeviceState.getOutput(index) && ((_mysecDeviceState.getNextValueSet(index) && ((long)(millis() - _mysecDeviceState.when[index]) >= 0)))) {
       // se temos uma programação expirada, atualizamos o valor
-      _mysecDeviceState.applyNext(index);
+      _mysecDeviceState.applyNext(index, mysecUdpNet->isDesabilitaAutomatico());
     }
   }
   // se temos chave nova então processamos
@@ -297,12 +261,6 @@ void MysecSwitch::loop() {
     if (_mysecDeviceState.numHttpErrors > 5) {
       _mysecDeviceState.lastSynch += 300000; // para por 5 minutos caso de muitos erros seguidos
       _mysecDeviceState.numHttpErrors = 0;
-    }
-    if (((long)(millis() - (_mysecDeviceState.lastSynch + 29990))) >= 0 || _mysecDeviceState.lastSynch == 0) {
-      if (_mysecUdpNet.isConfigured()) {
-        String payload = _mysecDeviceState.mysecParser->makePayloadH();
-        _mysecUdpNet.sendH(payload);
-      }
     }
     if (_mysecDeviceState.state == MysecDeviceState::STATE_DISCONNECTED) {
       conectaServidorCentral();
@@ -325,7 +283,7 @@ void MysecSwitch::loop() {
             // msgid, token, device
             String payload = _mysecDeviceState.mysecParser->makePayload(m, 2, _mysecDeviceState.nextPb1[0] != 0 && _mysecDeviceState.nextPb1[1] != 0 && _mysecDeviceState.nextPb1[2] != 0);
             MYSECSWITCH_DEBUGLN(F("Switch loop Sincronizando com servidor e viewer"));
-            _mysecUdpNet.send(payload);
+            mysecUdpNet->send(payload);
             _mysecWebsocketNet.send(F("SYNCH"), payload);
             // recebe resposta no callback
           }
@@ -343,14 +301,14 @@ void MysecSwitch::loop() {
           uint32_t m = millis();
           String payload = _mysecDeviceState.mysecParser->makePayload(m, 2, _mysecDeviceState.nextPb1[0] != 0 && _mysecDeviceState.nextPb1[1] != 0 && _mysecDeviceState.nextPb1[2] != 0);
           MYSECSWITCH_DEBUGLN(F("Switch loop Sincronizando com servidor e viewer"));
-          _mysecUdpNet.send(payload);
+          mysecUdpNet->send(payload);
           String response;
           String uri(F("/rest/device/synch"));
           bool resultado = _mysecHttpNet.request(uri, payload, response, wc_http) == 0;
           if (resultado) {
             String msgid(F("RSYNC"));
             _mysecDeviceState.state = MysecDeviceState::STATE_IDLE;
-            _mysecDeviceState.mysecParser->decodeResponse(msgid, response, m);
+            _mysecDeviceState.mysecParser->decodeResponse(msgid, response, m, mysecUdpNet->isDesabilitaAutomatico());
           }
         }
       }
@@ -359,7 +317,7 @@ void MysecSwitch::loop() {
     processaUdp();
   }
   if (_mysecDeviceState.state > MysecDeviceState::STATE_DISCONNECTED && _mysecDeviceState.connType == MysecDeviceState::TYPE_WEBSOCKET) {
-    _mysecWebsocketNet.loop();
+    _mysecWebsocketNet.loop(mysecUdpNet->isDesabilitaAutomatico());
   }
 }
 CBC<AES256> cipher;

@@ -26,7 +26,7 @@ public:
   bool connect(bool wssecure, const char* wshost, int wsport, const char* wsuri);
   // envia a mensagem acrescentando a assinatura
   void send(const __FlashStringHelper *msgid, String& payload);
-  void loop();
+  void loop(bool isDesabilitaAutomatico);
 };
 extern MysecWebsocketNet _mysecWebsocketNet;
 #endif /* MYSECWEBSOCKETNET_H_ */

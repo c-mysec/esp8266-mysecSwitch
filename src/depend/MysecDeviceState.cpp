@@ -182,7 +182,7 @@ bool MysecDeviceState::resetValue(uint8_t pin, double value) {
     return false;
   }
 }
-void MysecDeviceState::applyNext(uint8_t index) {
+void MysecDeviceState::applyNext(uint8_t index, bool isDesabilitaAutomatico) {
 #if MYSECSWITCH_DEBUG>2
   String p; p.reserve(50);
   p.concat(FPSTR("DeviceState ApplyNext Novo valor "));
@@ -194,7 +194,7 @@ void MysecDeviceState::applyNext(uint8_t index) {
   when[index] = 0;
   pinValue[index] = pinNextValue[index];
   setNextValueSet(index, false); // sinaliza que já aplicou
-  if (_mysecUdpNet.isDesabilitaAutomatico()) {
+  if (isDesabilitaAutomatico) {
     // desabilitado
     return;
   }
@@ -233,7 +233,6 @@ void MysecDeviceState::applyNext(uint8_t index) {
 uint32_t MysecDeviceState::getLibraryVersion() {
   return libraryVersion;
 }
-
 void MysecDeviceState::setNextSynch() {
   if (_mysecDeviceState.connType == MysecDeviceState::TYPE_HTTP) {
     // não adianta aumentar este valor pois o servidor irá barrar e até bloquear caso tente enviar mais

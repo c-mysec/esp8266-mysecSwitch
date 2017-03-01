@@ -62,6 +62,13 @@ extern const char PM_DESAFIO2[] PROGMEM;
 extern const char PM_DESAFIO3[] PROGMEM;
 extern const char PM_DESAFIO4[] PROGMEM;
 
+extern const char __PM_PVER[] PROGMEM;
+extern const char __PM_PVERLABEL[] PROGMEM;
+extern const char __PM_PLIBVERLABEL[] PROGMEM;
+extern const char __PM_IDLABEL[] PROGMEM;
+
+
+
 class MysecUtil {
 public:
   static String ulltoa(uint64_t ll);

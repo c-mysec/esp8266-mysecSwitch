@@ -157,6 +157,13 @@ const char PM_DESAFIO2[] PROGMEM = {"desafio2"};
 const char PM_DESAFIO3[] PROGMEM = {"desafio3"};
 const char PM_DESAFIO4[] PROGMEM = {"desafio4"};
 
+const char __PM_PVER[] PROGMEM = {"00"};
+const char __PM_PVERLABEL[] PROGMEM = {"pver"};
+const char __PM_PLIBVERLABEL[] PROGMEM = {"lver"};
+const char __PM_IDLABEL[] PROGMEM = {"cid"};
+
+
+
 const char MYSECSWITCH_PM_DEBUG[] PROGMEM = {"DEBUG:MySec "};
 const char MYSECSWITCH_PM_INFO[] PROGMEM = {"INFO:MySec "};
 const char MYSECSWITCH_PM_ERROR[] PROGMEM = {"ERROR:MySec "};

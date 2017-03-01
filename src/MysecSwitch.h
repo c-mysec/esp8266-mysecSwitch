@@ -11,25 +11,30 @@
 
 #ifndef MYSECSWITCH_H_
 #define MYSECSWITCH_H_
-
+#include "depend/MysecUdpNet.h"
 
 class MysecSwitch {
-private:
+public:
+  MysecUdpNet* mysecUdpNet;
   bool processaChaveNova();
   void persisteChaves();
   void processaUdp();
   void conectaServidorCentral();
-public:
   MysecSwitch() {
+    mysecUdpNet = new MysecUdpNet();
+  };
+  MysecSwitch(MysecUdpNet* pmysecUdpNet) {
+    mysecUdpNet = pmysecUdpNet;
   };
   ~MysecSwitch() {
+    delete mysecUdpNet;
   }
 
   /**
    * id is the device id on MySec
    */
-  void init(const char * centralServerURL, uint64_t id, int port, bool integraAlarme, const char * passk2);
-  void init(const char * centralServerURL, uint64_t id, int port, bool integraAlarme, const uint8_t * passk2);
+  void init(const char * centralServerURL, uint64_t id, int port, const char * passk2);
+  void init(const char * centralServerURL, uint64_t id, int port, const uint8_t * passk2);
   /**
    * Retorna o millis da última vez que conseguiu conectar com sucesso com o servidor
    */

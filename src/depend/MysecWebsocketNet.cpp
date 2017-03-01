@@ -45,7 +45,7 @@ bool MysecWebsocketNet::connect(bool wssecure, const char* wshost, int wsport, c
   webSocket.onEvent(webSocketEvent);
   return true;
 }
-void MysecWebsocketNet::loop() {
+void MysecWebsocketNet::loop(bool isDesabilitaAutomatico) {
   if (_mysecDeviceState.state <= MysecDeviceState::STATE_CONNECTING) {
     webSocket.loop();
   } else if (!webSocket.loop1()) {
@@ -63,7 +63,7 @@ void MysecWebsocketNet::loop() {
     String respToken2 = MysecUtil::makeToken(response.c_str(), _mysecDeviceState.passkey2);
     if (respToken == respToken2) {
       MYSECSWITCH_DEBUGF(F("WebsocketNet loop Response=%s\n"), response.c_str());
-      bool r = _mysecDeviceState.mysecParser->decodeResponse(msgid, response, 1);
+      bool r = _mysecDeviceState.mysecParser->decodeResponse(msgid, response, 1, isDesabilitaAutomatico);
       MYSECSWITCH_DEBUGF(F("WebsocketNet loop retorno decode=%d\n"), r);
       _mysecDeviceState.lastSynch = 1;
     } else {

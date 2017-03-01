@@ -17,12 +17,6 @@
 #include "MysecDeviceState.h"
 #include "MysecUtil.h"
 
-const char __PM_PVER[] PROGMEM = {"00"};
-const char __PM_PVERLABEL[] PROGMEM = {"pver"};
-const char __PM_PLIBVERLABEL[] PROGMEM = {"lver"};
-const char __PM_IDLABEL[] PROGMEM = {"cid"};
-
-
 String MysecParser::makePayload(uint32_t m, int fase, bool sendNextPb1) {
   StaticJsonBuffer<1000> jsonBuffer;
   JsonObject& root = jsonBuffer.createObject();
@@ -54,25 +48,6 @@ String MysecParser::makePayload(uint32_t m, int fase, bool sendNextPb1) {
   root.printTo(buffer);
   return buffer;
 }
-String MysecParser::makePayloadH() {
-  StaticJsonBuffer<1000> jsonBuffer;
-  JsonObject& root = jsonBuffer.createObject();
-  root[F("id")] = MysecUtil::ulltoa(_mysecDeviceState.id);
-  int32_t elapsed = (millis() - _mysecDeviceState.lasttimeMillis);
-  root[FPSTR(__PM_PVERLABEL)] = String(FPSTR(__PM_PVER));
-  root[FPSTR(__PM_IDLABEL)] = ESP.getChipId();
-  root[FPSTR(__PM_PLIBVERLABEL)] = _mysecDeviceState.getLibraryVersion();
-  root[FPSTR(PM_TIME)] = MysecUtil::ulltoa(_mysecDeviceState.timeoffset + elapsed);
-  root[FPSTR(PM_FASE)] = 3;
-  root[FPSTR(PM_TAG1)] = _mysecDeviceState.tag1;
-  root[FPSTR(PM_TAG2)] = _mysecDeviceState.tag2;
-  root[FPSTR(PM_DESAFIO1)] = random(10,20000);
-  root[FPSTR(PM_DESAFIO2)] = random(55,50000);
-  root[FPSTR(PM_S)] = millis();
-  String buffer; buffer.reserve(root.measureLength() + 1);
-  root.printTo(buffer);
-  return buffer;
-}
 String MysecParser::makeUrlRequest(uint32_t m) {
   StaticJsonBuffer<1000> jsonBuffer;
   JsonObject& root = jsonBuffer.createObject();
@@ -93,7 +68,7 @@ String MysecParser::makeUrlRequest(uint32_t m) {
   root.printTo(buffer);
   return buffer;
 }
-bool MysecParser::decodeResponse(const String& msgid, const String &resp, uint32_t m) {
+bool MysecParser::decodeResponse(const String& msgid, const String &resp, uint32_t m, bool isDesabilitaAutomatico) {
   StaticJsonBuffer<1000> jsonBuffer;
   JsonObject& root = jsonBuffer.parseObject(resp);
   if (!root.success())
@@ -102,9 +77,9 @@ bool MysecParser::decodeResponse(const String& msgid, const String &resp, uint32
     return false;
   }
   if (m > 0) {
-    return decodeResponse2(root[F("data")], m);
+    return decodeResponse2(root[F("data")], m, isDesabilitaAutomatico);
   } else {
-    return decodeResponse2(root, m);
+    return decodeResponse2(root, m, isDesabilitaAutomatico);
   }
 }
 bool MysecParser::decodeResponseNewKeyTime(JsonObject& rdata, uint32_t m) {
@@ -144,7 +119,7 @@ bool MysecParser::decodeResponseNewKeyTime(JsonObject& rdata, uint32_t m) {
   }
   return true;
 }
-bool MysecParser::decodeResponse2(JsonObject& rdata, uint32_t m) {
+bool MysecParser::decodeResponse2(JsonObject& rdata, uint32_t m, bool isDesabilitaAutomatico) {
   if (!decodeResponseNewKeyTime(rdata, m)) {
     return false;
   }
@@ -177,7 +152,7 @@ bool MysecParser::decodeResponse2(JsonObject& rdata, uint32_t m) {
                 _mysecDeviceState.when[j] = _mysecDeviceState.when[j] * 1000; // a transmissão é em segundos e guardamos milissegundos
                 _mysecDeviceState.pinNextValue[j] = LOW; // até 1024
                 if (_mysecDeviceState.when[j] <= 10000) {
-                  _mysecDeviceState.applyNext(j);
+                  _mysecDeviceState.applyNext(j, isDesabilitaAutomatico);
                 } else {
                   _mysecDeviceState.when[j] += agora;
                 }
@@ -189,7 +164,7 @@ bool MysecParser::decodeResponse2(JsonObject& rdata, uint32_t m) {
                 MYSECSWITCH_DEBUGF(F("Parser decodeResponse2 Disparando programação em =%d\n"), _mysecDeviceState.when[j]);
                 if (_mysecDeviceState.when[j] <= 10000) {
                   // se temos uma programação expirada, atualizamos o valor
-                  _mysecDeviceState.applyNext(j);
+                  _mysecDeviceState.applyNext(j, isDesabilitaAutomatico);
                 } else {
                   _mysecDeviceState.when[j] += agora;
                 }
@@ -217,7 +192,7 @@ bool MysecParser::decodeResponse2(JsonObject& rdata, uint32_t m) {
               if (_mysecDeviceState.getNextValueSet(j)) {
                 if (_mysecDeviceState.when[j] <= 10000) {
                   // se temos uma programação expirada, atualizamos o valor
-                  _mysecDeviceState.applyNext(j);
+                  _mysecDeviceState.applyNext(j, isDesabilitaAutomatico);
                 } else {
                   _mysecDeviceState.when[j] += agora;
                 }

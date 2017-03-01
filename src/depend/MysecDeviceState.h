@@ -72,7 +72,7 @@ public:
   bool getDigital(uint8_t pin);
   void setAutomatic(uint8_t pin, bool f);
   bool getAutomatic(uint8_t pin);
-  void applyNext(uint8_t index);
+  void applyNext(uint8_t index, bool isDesabilitaAutomatico);
   /**
    * Insere uma nova configuração para um pino. Deve ser executado uma única vez para cada pino.
    * Parâmetro Automatico quando TRUE indica que o pino será gerenciado pela API. Assim, no caso de
