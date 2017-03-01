@@ -29,6 +29,7 @@ public:
   uint32_t lasttimeMillis = 0;
   uint32_t lastSynch = 0;
   uint32_t lastSynchOk = 0;
+  uint32_t libraryVersion = 1;
   String url;
   uint64_t id = 0;
   uint32_t tag1 = 1;
@@ -61,6 +62,7 @@ public:
   ~MysecDeviceState(){
     delete mysecParser;
   };
+  uint32_t getLibraryVersion();
   void setNextSynch();
   void setNextValueSet(uint8_t pin, bool f);
   bool getNextValueSet(uint8_t pin);

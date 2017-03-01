@@ -19,6 +19,7 @@
 
 const char __PM_PVER[] PROGMEM = {"00"};
 const char __PM_PVERLABEL[] PROGMEM = {"pver"};
+const char __PM_PLIBVERLABEL[] PROGMEM = {"lver"};
 const char __PM_IDLABEL[] PROGMEM = {"cid"};
 
 
@@ -28,6 +29,7 @@ String MysecParser::makePayload(uint32_t m, int fase, bool sendNextPb1) {
   root[F("id")] = MysecUtil::ulltoa(_mysecDeviceState.id);
   root[FPSTR(__PM_PVERLABEL)] = String(FPSTR(__PM_PVER));
   root[FPSTR(__PM_IDLABEL)] = ESP.getChipId();
+  root[FPSTR(__PM_PLIBVERLABEL)] = _mysecDeviceState.getLibraryVersion();
   int32_t elapsed = (millis() - _mysecDeviceState.lasttimeMillis);
   root[FPSTR(PM_TIME)] = MysecUtil::ulltoa(_mysecDeviceState.timeoffset + elapsed);
   if (fase > 0) {
@@ -59,6 +61,7 @@ String MysecParser::makePayloadH() {
   int32_t elapsed = (millis() - _mysecDeviceState.lasttimeMillis);
   root[FPSTR(__PM_PVERLABEL)] = String(FPSTR(__PM_PVER));
   root[FPSTR(__PM_IDLABEL)] = ESP.getChipId();
+  root[FPSTR(__PM_PLIBVERLABEL)] = _mysecDeviceState.getLibraryVersion();
   root[FPSTR(PM_TIME)] = MysecUtil::ulltoa(_mysecDeviceState.timeoffset + elapsed);
   root[FPSTR(PM_FASE)] = 3;
   root[FPSTR(PM_TAG1)] = _mysecDeviceState.tag1;
@@ -76,6 +79,7 @@ String MysecParser::makeUrlRequest(uint32_t m) {
   root[F("id")] = MysecUtil::ulltoa(_mysecDeviceState.id);
   root[FPSTR(__PM_PVERLABEL)] = String(FPSTR(__PM_PVER));
   root[FPSTR(__PM_IDLABEL)] = ESP.getChipId();
+  root[FPSTR(__PM_PLIBVERLABEL)] = _mysecDeviceState.getLibraryVersion();
   int32_t elapsed = (m - _mysecDeviceState.lasttimeMillis);
   root[FPSTR(PM_TIME)] = MysecUtil::ulltoa(_mysecDeviceState.timeoffset + elapsed);
   if (_mysecDeviceState.passkey1[0] == 0 && _mysecDeviceState.passkey1[1] == 0 && _mysecDeviceState.passkey1[2] == 0) {

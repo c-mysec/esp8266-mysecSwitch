@@ -19,7 +19,6 @@
 #define INPUT_UPDATE_INTERVAL  1800000
 #define OUTPUT_UPDATE_INTERVAL  120000
 
-
 void MysecDeviceState::setNextValueSet(uint8_t pin, bool f) {
   pinFlags[pin] ^= (-f ^ pinFlags[pin]) & 1;
 }
@@ -231,6 +230,10 @@ void MysecDeviceState::applyNext(uint8_t index) {
     }
   }
 }
+uint32_t MysecDeviceState::getLibraryVersion() {
+  return libraryVersion;
+}
+
 void MysecDeviceState::setNextSynch() {
   if (_mysecDeviceState.connType == MysecDeviceState::TYPE_HTTP) {
     // não adianta aumentar este valor pois o servidor irá barrar e até bloquear caso tente enviar mais
