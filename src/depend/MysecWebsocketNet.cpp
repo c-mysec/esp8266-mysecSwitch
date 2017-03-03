@@ -87,6 +87,11 @@ void MysecWebsocketNet::send(const __FlashStringHelper *msgid, String& payload) 
     }
   }
 }
+void MysecWebsocketNet::disconnect() {
+  if (_mysecDeviceState.state != MysecDeviceState::STATE_DISCONNECTED) {
+    webSocket.disconnect();
+  }
+}
 void webSocketEvent(WStype_t type, uint8_t * payload, size_t lenght) {
   switch (type) {
   case WStype_DISCONNECTED: {

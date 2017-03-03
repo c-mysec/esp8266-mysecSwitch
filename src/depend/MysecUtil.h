@@ -78,6 +78,8 @@ public:
   static String makeToken(const char* payload, const uint8_t * passkey2);
   /* receivedToken é BU64 */
   static bool validateToken(const char* payload, const char* receivedToken, const uint8_t * passkey2);
+  static void setBit(uint8_t &value, uint8_t bit, bool active);
+  static bool getBit(uint8_t value, uint8_t bit);
 
   //TODO: Falta mover criação de chaves para ca.
 };

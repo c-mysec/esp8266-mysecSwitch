@@ -24,6 +24,7 @@ public:
   // se retornar true então muda de estado
   //_mysecDeviceState.state = MysecDeviceState::STATE_CONNECTING;
   bool connect(bool wssecure, const char* wshost, int wsport, const char* wsuri);
+  void disconnect();
   // envia a mensagem acrescentando a assinatura
   void send(const __FlashStringHelper *msgid, String& payload);
   void loop(bool isDesabilitaAutomatico);

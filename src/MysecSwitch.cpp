@@ -323,10 +323,10 @@ void MysecSwitch::loop() {
 CBC<AES256> cipher;
 
 void MysecSwitch::conectaServidorCentral() {
-  _mysecDeviceState.flags &= 0xFE;
+  MysecUtil::setBit(_mysecDeviceState.flags, 0, false);
   for (int i = 0; i < DEF_NUMPINS; i++) {
     if (_mysecDeviceState.getOutput(i)) {
-      _mysecDeviceState.flags |= 1;
+      MysecUtil::setBit(_mysecDeviceState.flags, 0, true);
     }
   }
   if (_mysecDeviceState.url.length() == 0) return;
@@ -404,11 +404,11 @@ void MysecSwitch::conectaServidorCentral() {
         payload.concat(MysecUtil::ulltoa(_mysecDeviceState.timeoffset + elapsed));
         wsuri.concat(F("&token2="));
         wsuri.concat(MysecUtil::makeToken(payload.c_str(), _mysecDeviceState.passkey2));
-        if (wssecure.equals(F("wss")) && ((_mysecDeviceState.flags & 1) > 0)) {
+        if (wssecure.equals(F("wss")) && (MysecUtil::getBit(_mysecDeviceState.flags, 0))) {
           _mysecWebsocketNet.connect(true, wshost.c_str(), wsport.toInt(), wsuri.c_str());
           _mysecDeviceState.state = MysecDeviceState::STATE_CONNECTING;
           _mysecDeviceState.connType = MysecDeviceState::TYPE_WEBSOCKET;
-        } else if (wssecure.equals(F("ws")) && ((_mysecDeviceState.flags & 1) > 0)) {
+        } else if (wssecure.equals(F("ws")) && (MysecUtil::getBit(_mysecDeviceState.flags, 0))) {
           _mysecWebsocketNet.connect(false, wshost.c_str(), wsport.toInt(), wsuri.c_str());
           _mysecDeviceState.state = MysecDeviceState::STATE_CONNECTING;
           _mysecDeviceState.connType = MysecDeviceState::TYPE_WEBSOCKET;

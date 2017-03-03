@@ -39,6 +39,12 @@ uint64_t MysecUtil::atoull(const String& a) {
   }
   return ll;
 }
+void MysecUtil::setBit(uint8_t &value, uint8_t bit, bool active) {
+  value ^= (-active ^ value) & (1 << bit);
+}
+bool MysecUtil::getBit(uint8_t value, uint8_t bit) {
+  return (value >> bit) & 1;
+}
 String MysecUtil::makeToken(const char* payload, const uint8_t * passkey2) {
   uint8_t *hash;
   String chaveOriginal; chaveOriginal.reserve(44);

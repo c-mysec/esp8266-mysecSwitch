@@ -114,7 +114,7 @@ bool MysecParser::decodeResponseNewKeyTime(JsonObject& rdata, uint32_t m) {
     uint32_t t1 = rdata[FPSTR(PM_TAG1)];
     uint32_t t2 = rdata[FPSTR(PM_TAG2)];
     if ((t1 != 0 || t2 != 0) && (t1 > _mysecDeviceState.tag1 || (t1 == _mysecDeviceState.tag1 && t2 > _mysecDeviceState.tag2))) {
-      _mysecDeviceState.flags |= 0x80;
+      MysecUtil::setBit(_mysecDeviceState.flags, 7, true);
     }
   }
   return true;

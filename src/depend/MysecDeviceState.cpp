@@ -236,7 +236,7 @@ uint32_t MysecDeviceState::getLibraryVersion() {
 void MysecDeviceState::setNextSynch() {
   if (_mysecDeviceState.connType == MysecDeviceState::TYPE_HTTP) {
     // não adianta aumentar este valor pois o servidor irá barrar e até bloquear caso tente enviar mais
-    lastSynchOk = millis() + ((_mysecDeviceState.flags & 1) > 0) ? OUTPUT_UPDATE_INTERVAL : INPUT_UPDATE_INTERVAL;
+    lastSynchOk = millis() + (MysecUtil::getBit(_mysecDeviceState.flags, 0))? OUTPUT_UPDATE_INTERVAL : INPUT_UPDATE_INTERVAL;
   } else {
     lastSynchOk = millis() + 300000;
   }
