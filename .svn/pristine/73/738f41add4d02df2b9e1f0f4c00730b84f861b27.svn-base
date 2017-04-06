@@ -1,0 +1,4 @@
+git status
+git commit
+git push -u origin master
+pause

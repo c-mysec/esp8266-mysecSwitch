@@ -1,0 +1,9 @@
+name=MySecSwitch
+version=0.2.1
+author=c-mysec <mysecsw@gmail.com>
+maintainer=c-mysec <mysecsw@gmail.com>
+sentence=A Library to control ESP8266 using Mysec website and MysecSwitch Android App (remote and local without a server).
+paragraph=Like this project? Please star it on GitHub!
+category=Uncategorized
+url=https://github.com/c-mysec/esp8266-mysec-switch
+architectures=esp8266
