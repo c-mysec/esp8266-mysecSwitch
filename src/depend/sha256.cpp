@@ -97,7 +97,11 @@ void Sha256Class::addUncounted(uint8_t data) {
     bufferOffset = 0;
   }
 }
-
+size_t Sha256Class::writeNoYield(uint8_t data) {
+  ++byteCount;
+  addUncounted(data);
+  return 1;
+}
 size_t Sha256Class::write(uint8_t data) {
   ++byteCount;
   addUncounted(data);
@@ -165,6 +169,25 @@ void Sha256Class::initHmac(const uint8_t* key, int keyLength) {
   init();
   for (i=0; i<BLOCK_LENGTH; i++) {
     write(keyBuffer[i] ^ HMAC_IPAD);
+  }
+}
+
+void Sha256Class::initHmacNoYield(const uint8_t* key, int keyLength) {
+  uint8_t i;
+  memset(keyBuffer,0,BLOCK_LENGTH);
+  if (keyLength > BLOCK_LENGTH) {
+    // Hash long keys
+    init();
+    for (;keyLength--;) writeNoYield(*key++);
+    memcpy(keyBuffer,result(),HASH_LENGTH);
+  } else {
+    // Block length keys are used as is
+    memcpy(keyBuffer,key,keyLength);
+  }
+  // Start inner hash
+  init();
+  for (i=0; i<BLOCK_LENGTH; i++) {
+    writeNoYield(keyBuffer[i] ^ HMAC_IPAD);
   }
 }
 

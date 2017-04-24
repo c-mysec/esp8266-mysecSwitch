@@ -45,6 +45,18 @@ void MysecUtil::setBit(uint8_t &value, uint8_t bit, bool active) {
 bool MysecUtil::getBit(uint8_t value, uint8_t bit) {
   return (value >> bit) & 1;
 }
+String MysecUtil::makeTokenNoYield(const char* payload, const uint8_t * passkey2) {
+  uint8_t *hash;
+  String chaveOriginal; chaveOriginal.reserve(44);
+  BU64::encode(chaveOriginal, passkey2, 32);
+  Sha256.initHmacNoYield(passkey2, 32); // key, and length of key in bytes
+  Sha256.print(payload);
+  hash = Sha256.resultHmac(); // 32 bytes
+  String bearer;
+  bearer.reserve(45);
+  BU64::encode(bearer, hash, 32);
+  return bearer;
+}
 String MysecUtil::makeToken(const char* payload, const uint8_t * passkey2) {
   uint8_t *hash;
   String chaveOriginal; chaveOriginal.reserve(44);

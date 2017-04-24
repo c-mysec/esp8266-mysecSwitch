@@ -264,6 +264,7 @@ void MysecSwitch::loop() {
       _mysecDeviceState.lastSynch += 300000; // para por 5 minutos caso de muitos erros seguidos
       _mysecDeviceState.numHttpErrors = 0;
     }
+    yield();
     if (_mysecDeviceState.state == MysecDeviceState::STATE_DISCONNECTED) {
       conectaServidorCentral();
     } else if (((long)(millis() - (_mysecDeviceState.lastSynch + 30000))) >= 0 || _mysecDeviceState.lastSynch == 0) {
@@ -284,7 +285,7 @@ void MysecSwitch::loop() {
             uint32_t m = millis();
             // msgid, token, device
             String payload = _mysecDeviceState.mysecParser->makePayload(m, 2, _mysecDeviceState.nextPb1[0] != 0 && _mysecDeviceState.nextPb1[1] != 0 && _mysecDeviceState.nextPb1[2] != 0);
-            MYSECSWITCH_DEBUGLN(F("Switch loop Sincronizando com servidor e viewer"));
+//            MYSECSWITCH_DEBUGLN(F("Switch loop Sincronizando com servidor e viewer"));
             if (mysecUdpNet != NULL) mysecUdpNet->send(payload);
             _mysecWebsocketNet.send(F("SYNCH"), payload);
             // recebe resposta no callback
@@ -298,11 +299,11 @@ void MysecSwitch::loop() {
               _mysecDeviceState.connType == MysecDeviceState::TYPE_HTTP)) {
         // http
         HTTPClient wc_http;
-        wc_http.setTimeout(10000);// milissegundos
+        wc_http.setTimeout(3000);// milissegundos
         if (_mysecHttpNet.getTime(wc_http, false)) {
           uint32_t m = millis();
           String payload = _mysecDeviceState.mysecParser->makePayload(m, 2, _mysecDeviceState.nextPb1[0] != 0 && _mysecDeviceState.nextPb1[1] != 0 && _mysecDeviceState.nextPb1[2] != 0);
-          MYSECSWITCH_DEBUGLN(F("Switch loop Sincronizando com servidor e viewer"));
+//          MYSECSWITCH_DEBUGLN(F("Switch loop Sincronizando com servidor e viewer"));
           if (mysecUdpNet != NULL) mysecUdpNet->send(payload);
           String response;
           String uri(F("/rest/device/synch"));
@@ -316,8 +317,10 @@ void MysecSwitch::loop() {
       }
     }
     // Agora processa UDP.
+    yield();
     processaUdp();
   }
+  yield();
   if (_mysecDeviceState.state > MysecDeviceState::STATE_DISCONNECTED && _mysecDeviceState.connType == MysecDeviceState::TYPE_WEBSOCKET) {
     _mysecWebsocketNet.loop(mysecUdpNet != NULL && mysecUdpNet->isDesabilitaAutomatico());
   }
@@ -332,13 +335,13 @@ void MysecSwitch::conectaServidorCentral() {
     }
   }
   if (_mysecDeviceState.url.length() == 0) return;
-  // tenta obter primeira conexão somente após 30 segundos
-  if (((long)(millis() - (_mysecDeviceState.lastSynch + 29990))) >= 0 || _mysecDeviceState.lastSynch == 0) {
+  // tenta obter primeira conexão somente após 120 segundos
+  if (((long)(millis() - (_mysecDeviceState.lastSynch + 120000))) >= 0 || _mysecDeviceState.lastSynch == 0) {
     // obtém time
     HTTPClient wc_http;
     _mysecDeviceState.lastSynch = millis();
     // tenta conectar -- tudo de uma vez para não precisar guardar a URL
-    wc_http.setTimeout(10000);// milissegundos
+    wc_http.setTimeout(3000);// milissegundos
     if (_mysecHttpNet.getTime(wc_http, false)) {
       // obtém URL
       uint32_t m = millis();

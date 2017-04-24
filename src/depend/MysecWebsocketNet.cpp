@@ -35,6 +35,7 @@ MysecWebsocketNet::~MysecWebsocketNet() {
 //
 bool MysecWebsocketNet::connect(bool wssecure, const char* wshost, int wsport, const char* wsuri) {
   resp.remove(0);
+  webSocket.disconnect();
   if (wssecure) {
     MYSECSWITCH_INFOF(F("WebsocketNet connect Iniciando websocket: wss://%s:%d%s\n"), wshost, wsport, wsuri);
     webSocket.beginSSL(wshost, wsport, wsuri);
@@ -53,6 +54,7 @@ void MysecWebsocketNet::loop(bool isDesabilitaAutomatico) {
   }
   // temos mensagem para processar
   if (resp.length() > 0) {
+    Serial.print("MysecWebsocketNet::loop");
     // valida assinatura token.
     int pos = resp.indexOf(':'); // RSYNC:
     int pos2 = resp.indexOf(':', pos + 1); // TOKEN:
@@ -60,15 +62,18 @@ void MysecWebsocketNet::loop(bool isDesabilitaAutomatico) {
     String respToken = resp.substring(pos + 1, pos2);
     String response = resp.substring(pos2 + 1); // pula ':'
     resp.remove(0);
+    Serial.print(2);
     String respToken2 = MysecUtil::makeToken(response.c_str(), _mysecDeviceState.passkey2);
     if (respToken == respToken2) {
-      MYSECSWITCH_DEBUGF(F("WebsocketNet loop Response=%s\n"), response.c_str());
+      Serial.print(3);
+//      MYSECSWITCH_DEBUGF(F("WebsocketNet loop Response=%s\n"), response.c_str());
       bool r = _mysecDeviceState.mysecParser->decodeResponse(msgid, response, 1, isDesabilitaAutomatico);
-      MYSECSWITCH_DEBUGF(F("WebsocketNet loop retorno decode=%d\n"), r);
+//      MYSECSWITCH_DEBUGF(F("WebsocketNet loop retorno decode=%d\n"), r);
       _mysecDeviceState.lastSynch = 1;
-    } else {
-      MYSECSWITCH_DEBUGF(F("WebsocketNet loop Response=%s, respToken=%s, gen respToke=%s\n"), response.c_str(), respToken.c_str(), respToken2.c_str());
+//    } else {
+//      MYSECSWITCH_DEBUGF(F("WebsocketNet loop Response=%s, respToken=%s, gen respToke=%s\n"), response.c_str(), respToken.c_str(), respToken2.c_str());
     }
+    Serial.print(4);
   }
 }
 void MysecWebsocketNet::send(const __FlashStringHelper *msgid, String& payload) {

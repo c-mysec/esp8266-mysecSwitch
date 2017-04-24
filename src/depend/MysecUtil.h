@@ -76,6 +76,8 @@ public:
   static String formatTime(uint64_t temp, long timezone, bool daylight);
   /* Devolve token BU64 */
   static String makeToken(const char* payload, const uint8_t * passkey2);
+  static String makeTokenNoYield(const char* payload, const uint8_t * passkey2);
+
   /* receivedToken é BU64 */
   static bool validateToken(const char* payload, const char* receivedToken, const uint8_t * passkey2);
   static void setBit(uint8_t &value, uint8_t bit, bool active);

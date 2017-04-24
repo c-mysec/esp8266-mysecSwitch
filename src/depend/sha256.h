@@ -33,9 +33,11 @@ class Sha256Class : public Print
   public:
     void init(void);
     void initHmac(const uint8_t* secret, int secretLength);
+    void initHmacNoYield(const uint8_t* secret, int secretLength);
     uint8_t* result(void);
     uint8_t* resultHmac(void);
     size_t write(uint8_t);
+    size_t writeNoYield(uint8_t);
     using Print::write;
   private:
     void pad();
